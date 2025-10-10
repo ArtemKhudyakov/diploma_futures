@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Пользователи - LMS{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Список пользователей</h1>
+        <a href="{% url 'home' %}" class="btn btn-secondary">На главную</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Имя пользователя</th>
+                    <th>Email</th>
+                    <th>Имя</th>
+                    <th>Роль</th>
+                    <th>Статус</th>
+                    <th>Дата регистрации</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>
+                        <strong>{{ user.username }}</strong>
+                        {% if user == request.user %}<span class="badge bg-info">Вы</span>{% endif %}
+                    </td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                        {% if user.first_name or user.last_name %}
+                            {{ user.first_name }} {{ user.last_name }}
+                        {% else %}
+                            <span class="text-muted">Не указано</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {% if user.role == 'manager' %}bg-warning{% else %}bg-secondary{% endif %}">
+                            {{ user.get_role_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge {% if user.is_blocked %}bg-danger{% else %}bg-success{% endif %}">
+                            {% if user.is_blocked %}Заблокирован{% else %}Активен{% endif %}
+                        </span>
+                    </td>
+                    <td>{{ user.date_joined|date:"d.m.Y H:i" }}</td>
+                    <td>
+                        <a href="{% url 'users:api_profile_detail' pk=user.id %}"
+                           class="btn btn-sm btn-info" title="Просмотр">
+                            👁️
+                        </a>
+                        <a href="{% url 'users:api_profile_update_detail' pk=user.id %}"
+                           class="btn btn-sm btn-warning" title="Редактировать">
+                            ✏️
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        Пользователи не найдены
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

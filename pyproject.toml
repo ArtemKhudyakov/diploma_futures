@@ -1,0 +1,73 @@
+[project]
+name = "diploma-futures"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Your Name",email = "you@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+    "django (>=5.2.7,<6.0.0)",
+    "django-phonenumber-field (>=8.3.0,<9.0.0)",
+    "drf-yasg (>=1.21.11,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.lint.dependencies]
+mypy = "^1.18.2"
+flake8 = "^7.3.0"
+isort = "^6.1.0"
+black = "^25.9.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pillow = "^11.3.0"
+dotenv = "^0.9.9"
+psycopg2 = "^2.9.10"
+autopep8 = "^2.3.2"
+phonenumbers = "^9.0.15"
+ipython = "^9.6.0"
+redis = "^6.4.0"
+django-redis = "^6.0.0"
+django = "^5.2.7"
+django-select2 = "^8.4.1"
+djangorestframework = "^3.16.1"
+requests = "^2.32.5"
+celery = "^5.5.3"
+django-celery-beat = "^2.8.1"
+drf-yasg = "^1.21.11"
+python-telegram-bot = "^22.5"
+djangorestframework-simplejwt = "^5.5.1"
+django-extensions = "^4.1"
+django-filter = "^25.2"
+django-cors-headers = "^4.9.0"
+
+[tool.black]
+# Максимальная длина строки
+line-length = 119
+# Файлы, которые не нужно форматировать
+exclude = '''
+(
+  /(
+      \.eggs         # Исключить несколько общих каталогов
+    | \.git          # в корне проекта
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | dist
+  )/
+  | foo.py           # Также отдельно исключить файл с именем foo.py
+                     # в корне проекта
+)
+'''
+
+[tool.isort]
+# максимальная длина строки
+line_length = 119
+multi_line_output = 3

@@ -1,0 +1,119 @@
+/* Анимации */
+.fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Кастомные стили для навигации */
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.nav-link {
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    margin: 0 2px;
+}
+
+/* Стили для footer */
+.footer-link {
+    transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+    color: var(--bs-primary) !important;
+}
+
+/* Оптимизация отображения форм */
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    border-color: #86b7fe;
+}
+
+footer {
+    background-color: #f8f9fa !important;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+}
+
+.hover-primary {
+    transition: all 0.3s ease;
+}
+
+.hover-primary:hover {
+    color: var(--bs-primary) !important;
+    transform: translateX(3px);
+}
+
+.social-icons a {
+    transition: transform 0.3s ease;
+}
+
+.social-icons a:hover {
+    transform: translateY(-3px);
+}
+
+/* Улучшение читаемости */
+.text-muted {
+    color: #6c757d !important;
+}
+
+/* Светлый подвал */
+.bg-light-subtle {
+    background-color: #f8f9fa !important;
+}
+
+/* Эффекты при наведении */
+.hover-opacity-100:hover {
+    opacity: 1 !important;
+}
+
+/* Плавные переходы */
+footer a, footer button {
+    transition: all 0.25s ease;
+}
+
+/* Граница-разделитель */
+hr.opacity-10 {
+    border-color: rgba(0,0,0,0.1) !important;
+}
+
+/* Стили для форм */
+.form-floating label {
+    color: #6c757d;
+    transition: all 0.2s;
+}
+
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label {
+    transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+    background: white;
+    padding: 0 0.3rem;
+    color: #0d6efd;
+}
+
+/* Кастомные элементы */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.position-relative {
+    position: relative;
+}
+
+.position-absolute {
+    position: absolute;
+}
+
+/* Анимации */
+.img-thumbnail {
+    transition: all 0.3s ease;
+}
+
+.img-thumbnail:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
