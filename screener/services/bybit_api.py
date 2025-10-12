@@ -1,6 +1,7 @@
 from pybit.unified_trading import HTTP
 import logging
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, Dict, List
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -8,7 +9,7 @@ import os
 
 
 class BybitClient:
-    """Клиент для Bybit с использованием pybit"""
+    """Клиент для Bybit с поддержкой спота и фьючерсов"""
 
     def __init__(self, testnet: bool = False, api_key: str = os.getenv('BYBIT_API_KEY'),
                  api_secret: str = 'BYBIT_API_SECRET'):
@@ -18,9 +19,11 @@ class BybitClient:
             api_secret=api_secret
         )
         self.testnet = testnet
+        self.mode = "TESTNET" if testnet else "MAINNET"
+        logger.info(f"BybitClient инициализирован в режиме: {self.mode}")
 
-    def get_current_price(self, symbol: str, category: str = "spot") -> Optional[float]:
-        """Получение текущей цены"""
+    def get_price(self, symbol: str, category: str) -> Optional[float]:
+        """Получение цены для указанной категории"""
         try:
             response = self.session.get_tickers(
                 category=category,
@@ -28,10 +31,14 @@ class BybitClient:
             )
 
             if response['retCode'] == 0 and response['result']['list']:
-                return float(response['result']['list'][0]['lastPrice'])
+                price = float(response['result']['list'][0]['lastPrice'])
+                logger.debug(f"{self.mode} {symbol} {category}: ${price:.2f}")
+                return price
+            else:
+                logger.error(f"Ошибка API {category} {symbol}: {response['retMsg']}")
 
         except Exception as e:
-            logger.error(f"Ошибка получения цены {symbol}: {e}")
+            logger.error(f"Ошибка получения цены {symbol} {category}: {e}")
 
         return None
 
@@ -64,21 +71,67 @@ class BybitClient:
 
         return []
 
-    def get_eth_btc_prices(self) -> Tuple[Optional[float], Optional[float]]:
-        """Получение текущих цен ETH и BTC"""
-        eth_price = self.get_current_price("ETHUSDT", "linear")
-        btc_price = self.get_current_price("BTCUSDT", "linear")
-        return eth_price, btc_price
+    def get_spot_prices(self) -> Dict[str, Optional[float]]:
+        """Получение спотовых цен"""
+        return {
+            'eth_spot': self.get_price("ETHUSDT", "spot"),
+            'btc_spot': self.get_price("BTCUSDT", "spot")
+        }
+
+    def get_futures_prices(self) -> Dict[str, Optional[float]]:
+        """Получение фьючерсных цен (linear)"""
+        return {
+            'eth_futures': self.get_price("ETHUSDT", "linear"),
+            'btc_futures': self.get_price("BTCUSDT", "linear")
+        }
+
+    def get_all_prices(self) -> Dict[str, Optional[float]]:
+        """Получение всех цен: спот и фьючерсы"""
+        spot_prices = self.get_spot_prices()
+        futures_prices = self.get_futures_prices()
+        return {**spot_prices, **futures_prices}
+
+    # @staticmethod
+    def calculate_basis(self, spot_price: float, futures_price: float) -> float:
+        """Расчет базиса (разница между фьючерсом и спотом)"""
+        if spot_price and futures_price:
+            return ((futures_price - spot_price) / spot_price) * 100
+        return 0.0
 
 
-# Пример использования
+
+
+
 if __name__ == "__main__":
-    # Без API ключей - для получения цен
-    client = BybitClient(testnet=False)
+    def test_prices():
+        client = BybitClient(testnet=False)
 
-    eth, btc = client.get_eth_btc_prices()
-    print(f"ETH: ${eth}, BTC: ${btc}")
+        print("💰 ПОЛУЧЕНИЕ СПОТОВЫХ И ФЬЮЧЕРСНЫХ ЦЕН")
+        print("=" * 60)
 
-    # Получение исторических данных
-    klines = client.get_klines("ETHUSDT", "linear", interval=60, limit=100)
-    print(f"Получено {len(klines)} свечей")
+        while True:
+            try:
+                prices = client.get_all_prices()
+
+                if all(prices.values()):
+                    # Расчет базиса
+                    eth_basis = client.calculate_basis(prices['eth_spot'], prices['eth_futures'])
+                    btc_basis = client.calculate_basis(prices['btc_spot'], prices['btc_futures'])
+
+                    print(f"[{time.strftime('%H:%M:%S')}] "
+                          f"ETH: Spot=${prices['eth_spot']:7.2f} | "
+                          f"Futures=${prices['eth_futures']:7.2f} | "
+                          f"Basis={eth_basis:+.3f}%")
+
+                    print(f"{' ':28}"
+                          f"BTC: Spot=${prices['btc_spot']:8.2f} | "
+                          f"Futures=${prices['btc_futures']:8.2f} | "
+                          f"Basis={btc_basis:+.3f}%")
+                    print("-" * 60)
+
+                time.sleep(10)  # Обновление каждые 10 секунд для теста
+
+            except KeyboardInterrupt:
+                print("\n⏹️ Тест остановлен")
+                break
+    test_prices()
