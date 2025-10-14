@@ -3,69 +3,77 @@ from plotly.subplots import make_subplots
 import pandas as pd
 from datetime import datetime, timedelta
 import logging
-from typing import List, Dict, Optional
-from screener.models import PriceHistory
+from typing import List, Dict
 
 logger = logging.getLogger(__name__)
 
 
 class ChartService:
     """
-    Сервис для создания свечных графиков и визуализации анализа
+    Сервис для создания свечных графиков с разными таймфреймами
     """
 
     def __init__(self):
+        self.timeframes = {
+            '1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m',
+            '1h': '1h', '2h': '2h', '4h': '4h',
+            '1d': '1d', '1w': '1w', '1M': '1M'
+        }
+
         self.colors = {
             'green': '#00C853',
             'red': '#FF5252',
             'blue': '#2196F3',
-            'orange': '#FF9800',
-            'purple': '#9C27B0'
+            'orange': '#FF9800'
         }
 
-    def create_candlestick_chart(self, symbol: str, category: str,
-                                 days: int = 1, height: int = 600) -> go.Figure:
+    def create_candlestick_chart(self, klines: List[Dict], symbol: str,
+                                 timeframe: str = '1h', height: int = 600) -> go.Figure:
         """
-        Создание свечного графика для указанного символа
+        Создание свечного графика из данных свечей
         """
-        # Получаем данные из БД
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+        if not klines:
+            return self._create_empty_chart(f"Нет данных для {symbol}")
 
-        candles = PriceHistory.objects.filter(
-            symbol=symbol,
-            category=category,
-            timestamp__gte=start_date,
-            timestamp__lte=end_date
-        ).order_by('timestamp')
-
-        if not candles:
-            logger.warning(f"Нет данных для {symbol} {category} за последние {days} дней")
-            return self._create_empty_chart("Нет данных")
-
-        # Подготавливаем данные для графика
-        dates = [candle.timestamp for candle in candles]
-        opens = [candle.open_price for candle in candles]
-        highs = [candle.high_price for candle in candles]
-        lows = [candle.low_price for candle in candles]
-        closes = [candle.close_price for candle in candles]
+        # Преобразуем данные
+        df = self._klines_to_dataframe(klines)
 
         # Создаем свечной график
         fig = go.Figure()
 
         fig.add_trace(go.Candlestick(
-            x=dates,
-            open=opens,
-            high=highs,
-            low=lows,
-            close=closes,
+            x=df['datetime'],
+            open=df['open'],
+            high=df['high'],
+            low=df['low'],
+            close=df['close'],
             name=symbol,
             increasing_line_color=self.colors['green'],
             decreasing_line_color=self.colors['red']
         ))
 
-        # Настройка оформления
-        title = f"{symbol} {category.upper()} - Свечной график ({days} день)"
+        # Добавляем объемы (если есть)
+        if 'volume' in df.columns and df['volume'].sum() > 0:
+            fig.add_trace(go.Bar(
+                x=df['datetime'],
+                y=df['volume'],
+                name='Volume',
+                marker_color='rgba(100, 100, 100, 0.3)',
+                yaxis='y2'
+            ))
+
+            # Настраиваем второй Y-axis для объемов
+            fig.update_layout(
+                yaxis2=dict(
+                    title="Volume",
+                    overlaying='y',
+                    side='right',
+                    showgrid=False
+                )
+            )
+
+        # Настройки графика
+        title = f"{symbol} - Свечной график ({timeframe})"
         fig.update_layout(
             title=title,
             xaxis_title="Время",
@@ -77,212 +85,86 @@ class ChartService:
 
         return fig
 
-    def create_analysis_dashboard(self, intrinsic_data: Dict,
-                                  prices: Dict, days: int = 1) -> go.Figure:
+    def create_multiple_charts(self, klines_data: Dict[str, List[Dict]],
+                               timeframe: str = '1h') -> go.Figure:
         """
-        Создание дашборда с несколькими графиками анализа
+        Создание нескольких графиков на одном полотне
         """
-        # Создаем subplots: свечи ETH, свечи BTC, собственное движение
+        symbols = list(klines_data.keys())
+
+        if not symbols:
+            return self._create_empty_chart("Нет данных для графиков")
+
+        if len(symbols) == 1:
+            return self.create_candlestick_chart(
+                klines_data[symbols[0]], symbols[0], timeframe, height=600
+            )
+
+        # Создаем subplots для нескольких символов
         fig = make_subplots(
-            rows=3, cols=1,
-            subplot_titles=(
-                f"ETHUSDT Spot - Собственное движение: {intrinsic_data.get('spot_intrinsic', 0):.3f}%",
-                "BTCUSDT Spot",
-                "Собственное движение ETH"
-            ),
-            vertical_spacing=0.08,
-            row_heights=[0.5, 0.3, 0.2]
+            rows=len(symbols), cols=1,
+            subplot_titles=[f"{sym} ({timeframe})" for sym in symbols],
+            vertical_spacing=0.05
         )
 
-        # 1. График ETH
-        eth_candles = self._get_candle_data('ETHUSDT', 'spot', days)
-        if eth_candles:
+        for i, symbol in enumerate(symbols):
+            klines = klines_data[symbol]
+            if not klines:
+                # Добавляем пустой subplot с сообщением
+                fig.add_annotation(
+                    text=f"Нет данных для {symbol}",
+                    xref=f"x{i + 1}", yref=f"y{i + 1}",
+                    x=0.5, y=0.5,
+                    showarrow=False,
+                    font=dict(size=14),
+                    row=i + 1, col=1
+                )
+                continue
+
+            df = self._klines_to_dataframe(klines)
+
             fig.add_trace(go.Candlestick(
-                x=eth_candles['dates'],
-                open=eth_candles['opens'],
-                high=eth_candles['highs'],
-                low=eth_candles['lows'],
-                close=eth_candles['closes'],
-                name="ETHUSDT",
+                x=df['datetime'],
+                open=df['open'],
+                high=df['high'],
+                low=df['low'],
+                close=df['close'],
+                name=symbol,
                 increasing_line_color=self.colors['green'],
                 decreasing_line_color=self.colors['red']
-            ), row=1, col=1)
+            ), row=i + 1, col=1)
 
-        # 2. График BTC
-        btc_candles = self._get_candle_data('BTCUSDT', 'spot', days)
-        if btc_candles:
-            fig.add_trace(go.Candlestick(
-                x=btc_candles['dates'],
-                open=btc_candles['opens'],
-                high=btc_candles['highs'],
-                low=btc_candles['lows'],
-                close=btc_candles['closes'],
-                name="BTCUSDT",
-                increasing_line_color=self.colors['blue'],
-                decreasing_line_color=self.colors['orange']
-            ), row=2, col=1)
-
-        # 3. График собственного движения (если есть исторические данные)
-        intrinsic_history = self._get_intrinsic_history(days)
-        if intrinsic_history:
-            fig.add_trace(go.Scatter(
-                x=intrinsic_history['dates'],
-                y=intrinsic_history['values'],
-                mode='lines',
-                name='Собственное движение',
-                line=dict(color=self.colors['purple'], width=2)
-            ), row=3, col=1)
-
-            # Добавляем горизонтальную линию на уровне 0
-            fig.add_hline(y=0, line_dash="dash", line_color="gray", row=3, col=1)
-
-        # Настройка оформления
+        # Настройки
         fig.update_layout(
-            title="Анализ собственного движения ETH",
-            height=900,
+            title=f"Сравнение активов",
+            height=300 * len(symbols),
             template="plotly_white",
-            showlegend=True,
-            xaxis_rangeslider_visible=False,
-            xaxis2_rangeslider_visible=False
-        )
-
-        # Настройка осей
-        fig.update_yaxes(title_text="ETH Цена", row=1, col=1)
-        fig.update_yaxes(title_text="BTC Цена", row=2, col=1)
-        fig.update_yaxes(title_text="Собств. движение %", row=3, col=1)
-
-        return fig
-
-    def create_comparison_chart(self, symbol: str, days: int = 1) -> go.Figure:
-        """
-        График сравнения спотовой и фьючерсной цены
-        """
-        # Получаем данные
-        spot_data = self._get_price_history('ETHUSDT', 'spot', days)
-        futures_data = self._get_price_history('ETHUSDT', 'linear', days)
-
-        if not spot_data or not futures_data:
-            return self._create_empty_chart("Нет данных для сравнения")
-
-        fig = go.Figure()
-
-        # Спот цена
-        fig.add_trace(go.Scatter(
-            x=spot_data['dates'],
-            y=spot_data['prices'],
-            mode='lines',
-            name='ETH Spot',
-            line=dict(color=self.colors['blue'], width=2)
-        ))
-
-        # Фьючерс цена
-        fig.add_trace(go.Scatter(
-            x=futures_data['dates'],
-            y=futures_data['prices'],
-            mode='lines',
-            name='ETH Futures',
-            line=dict(color=self.colors['orange'], width=2)
-        ))
-
-        # Расчет и отображение базиса
-        basis_data = self._calculate_basis(spot_data, futures_data)
-        if basis_data:
-            fig.add_trace(go.Scatter(
-                x=basis_data['dates'],
-                y=basis_data['basis'],
-                mode='lines',
-                name='Базис (%)',
-                line=dict(color=self.colors['purple'], width=1, dash='dash'),
-                yaxis='y2'
-            ))
-
-        # Настройка графика
-        title = f"Сравнение Spot vs Futures - {symbol}"
-        fig.update_layout(
-            title=title,
-            xaxis_title="Время",
-            yaxis_title="Цена (USDT)",
-            yaxis2=dict(
-                title="Базис %",
-                overlaying='y',
-                side='right',
-                showgrid=False
-            ),
-            height=500,
-            template="plotly_white"
+            showlegend=False,
+            xaxis_rangeslider_visible=False
         )
 
         return fig
 
-    def _get_candle_data(self, symbol: str, category: str, days: int) -> Optional[Dict]:
-        """Получение свечных данных для графика"""
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+    def _klines_to_dataframe(self, klines: List[Dict]) -> pd.DataFrame:
+        """Конвертация свечных данных в DataFrame"""
+        if not klines:
+            return pd.DataFrame()
 
-        candles = PriceHistory.objects.filter(
-            symbol=symbol,
-            category=category,
-            timestamp__gte=start_date,
-            timestamp__lte=end_date
-        ).order_by('timestamp')
+        data = []
+        for kline in klines:
+            data.append({
+                'timestamp': kline['timestamp'],
+                'datetime': datetime.fromtimestamp(kline['timestamp'] / 1000),
+                'open': kline['open'],
+                'high': kline['high'],
+                'low': kline['low'],
+                'close': kline['close'],
+                'volume': kline.get('volume', 0)
+            })
 
-        if not candles:
-            return None
-
-        return {
-            'dates': [candle.timestamp for candle in candles],
-            'opens': [candle.open_price for candle in candles],
-            'highs': [candle.high_price for candle in candles],
-            'lows': [candle.low_price for candle in candles],
-            'closes': [candle.close_price for candle in candles]
-        }
-
-    def _get_price_history(self, symbol: str, category: str, days: int) -> Optional[Dict]:
-        """Получение истории цен"""
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-
-        prices = PriceHistory.objects.filter(
-            symbol=symbol,
-            category=category,
-            timestamp__gte=start_date,
-            timestamp__lte=end_date
-        ).order_by('timestamp')
-
-        if not prices:
-            return None
-
-        return {
-            'dates': [price.timestamp for price in prices],
-            'prices': [price.close_price for price in prices]
-        }
-
-    def _get_intrinsic_history(self, days: int) -> Optional[Dict]:
-        """Получение истории собственного движения (заглушка - нужно реализовать)"""
-        # TODO: Реализовать сохранение и загрузку истории собственного движения
-        return None
-
-    def _calculate_basis(self, spot_data: Dict, futures_data: Dict) -> Optional[Dict]:
-        """Расчет базиса между spot и futures"""
-        if not spot_data or not futures_data:
-            return None
-
-        # Находим общие временные точки
-        common_dates = []
-        basis_values = []
-
-        for i, spot_date in enumerate(spot_data['dates']):
-            for j, futures_date in enumerate(futures_data['dates']):
-                if spot_date == futures_date:
-                    spot_price = spot_data['prices'][i]
-                    futures_price = futures_data['prices'][j]
-                    basis = ((futures_price - spot_price) / spot_price) * 100
-
-                    common_dates.append(spot_date)
-                    basis_values.append(basis)
-                    break
-
-        return {'dates': common_dates, 'basis': basis_values}
+        df = pd.DataFrame(data)
+        df = df.sort_values('datetime')
+        return df
 
     def _create_empty_chart(self, message: str) -> go.Figure:
         """Создание пустого графика с сообщением"""
@@ -292,7 +174,7 @@ class ChartService:
             xref="paper", yref="paper",
             x=0.5, y=0.5,
             showarrow=False,
-            font=dict(size=20)
+            font=dict(size=16)
         )
         fig.update_layout(
             title=message,
@@ -301,21 +183,19 @@ class ChartService:
         )
         return fig
 
-    def save_chart(self, fig: go.Figure, filename: str):
-        """
-        Сохранение графика в файл
-        """
-        try:
-            fig.write_html(f"charts/{filename}.html")
-            logger.info(f"График сохранен: charts/{filename}.html")
-        except Exception as e:
-            logger.error(f"Ошибка сохранения графика: {e}")
-
     def show_chart(self, fig: go.Figure):
-        """
-        Показ графика в браузере
-        """
+        """Показать график в браузере"""
         try:
             fig.show()
         except Exception as e:
             logger.error(f"Ошибка отображения графика: {e}")
+
+    def save_chart(self, fig: go.Figure, filename: str):
+        """Сохранить график в HTML файл"""
+        try:
+            import os
+            os.makedirs("charts", exist_ok=True)
+            fig.write_html(f"charts/{filename}.html")
+            logger.info(f"График сохранен: charts/{filename}.html")
+        except Exception as e:
+            logger.error(f"Ошибка сохранения графика: {e}")
