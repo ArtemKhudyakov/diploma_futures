@@ -66,11 +66,6 @@
             opacity: 0.9;
         }
 
-        button:disabled {
-            background: #555;
-            cursor: not-allowed;
-        }
-
         .btn-primary {
             background: #007bff;
         }
@@ -123,7 +118,6 @@
             font-size: 1.3em;
             font-weight: bold;
             margin: 10px 0;
-            transition: color 0.5s ease;
         }
 
         .change {
@@ -172,16 +166,31 @@
             background: #007bff;
         }
 
-        .timeframe-btn:hover {
-            background: #555;
+        .summary-card {
+            background: linear-gradient(135deg, #1a1a2e, #2d2d44);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+            text-align: center;
         }
 
-        .auto-update-info {
-            background: #2d2d44;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-            font-size: 12px;
+        .summary-text {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .analysis-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .analysis-label {
+            font-size: 0.9em;
+            color: #ccc;
+            margin: 0;
         }
     </style>
 </head>
@@ -189,7 +198,7 @@
 <div class="container">
     <div class="header">
         <h1>🚀 Crypto Analysis - Автообновление</h1>
-        <p>Автоматическое обновление цен каждые 2 секунды и графика каждые 30 секунд</p>
+        <p>Автоматическое обновление цен каждые 2 секунды и графика каждые 10 секунд</p>
     </div>
 
     <div class="controls">
@@ -204,25 +213,13 @@
         <div class="control-group">
             <label>Таймфрейм:</label>
             <select id="timeframeSelect">
-                <optgroup label="Малые таймфреймы">
-                    <option value="1m">1 Minute</option>
-                    <option value="3m">3 Minutes</option>
-                    <option value="5m">5 Minutes</option>
-                    <option value="15m">15 Minutes</option>
-                    <option value="30m">30 Minutes</option>
-                </optgroup>
-                <optgroup label="Средние таймфреймы">
-                    <option value="1h" selected>1 Hour</option>
-                    <option value="2h">2 Hours</option>
-                    <option value="4h">4 Hours</option>
-                    <option value="6h">6 Hours</option>
-                    <option value="12h">12 Hours</option>
-                </optgroup>
-                <optgroup label="Большие таймфреймы">
-                    <option value="1d">1 Day</option>
-                    <option value="1w">1 Week</option>
-                    <option value="1M">1 Month</option>
-                </optgroup>
+                <option value="1m">1 Minute</option>
+                <option value="5m">5 Minutes</option>
+                <option value="15m">15 Minutes</option>
+                <option value="30m">30 Minutes</option>
+                <option value="1h" selected>1 Hour</option>
+                <option value="4h">4 Hours</option>
+                <option value="1d">1 Day</option>
             </select>
         </div>
 
@@ -235,35 +232,29 @@
             </select>
         </div>
 
+        <div class="control-group">
+            <label>Период анализа:</label>
+            <select id="trainingDaysSelect">
+                <option value="1">1 день</option>
+                <option value="3">3 дня</option>
+                <option value="7" selected>7 дней</option>
+                <option value="30">1 месяц</option>
+            </select>
+        </div>
+
         <button onclick="loadChartData()" id="loadChartBtn" class="btn-primary">🔄 Обновить график</button>
-        <button onclick="toggleAutoUpdate()" id="autoUpdateBtn" class="btn-success">▶️ Автообновление ВКЛ</button>
+        <button onclick="toggleAutoUpdate()" id="autoUpdateBtn" class="btn-success">▶️ Включить автообновление</button>
         <button onclick="forceRefreshAll()" id="refreshBtn" class="btn-warning">🎯 Принудительное обновление</button>
     </div>
 
-    <!-- Информация об автообновлении -->
-    <div class="auto-update-info">
-        <strong>Статус автообновления:</strong>
-        <span id="auto-update-status">Инициализация...</span>
-        <br>
-        <small>Цены: каждую секунду | График: каждые 2 секунды | Последнее обновление графика: <span
-                id="last-chart-update">-</span></small>
-    </div>
-
-    <!-- Быстрый выбор таймфреймов -->
-    <div class="timeframe-buttons">
-        <strong>Быстрый выбор:</strong>
-        <button class="timeframe-btn" onclick="setTimeframe('1m')">1m</button>
-        <button class="timeframe-btn" onclick="setTimeframe('5m')">5m</button>
-        <button class="timeframe-btn" onclick="setTimeframe('15m')">15m</button>
-        <button class="timeframe-btn" onclick="setTimeframe('30m')">30m</button>
-        <button class="timeframe-btn" onclick="setTimeframe('1h')">1h</button>
-        <button class="timeframe-btn" onclick="setTimeframe('4h')">4h</button>
-        <button class="timeframe-btn" onclick="setTimeframe('1d')">1d</button>
+    <!-- ОБЩИЙ ВЫВОД -->
+    <div class="summary-card" id="summaryCard">
+        <p class="summary-text" id="summaryText">Загрузка анализа...</p>
     </div>
 
     <div id="status" class="status">Готов к работе</div>
 
-    <!-- Дашборд с ценами -->
+    <!-- ЦЕНЫ -->
     <div class="dashboard">
         <div class="card">
             <h3>ETH Spot</h3>
@@ -287,27 +278,45 @@
         </div>
     </div>
 
-    <!-- График -->
+    <!-- АНАЛИЗ ЭФИРА -->
+    <div class="dashboard">
+        <div class="card">
+            <h3>📊 Собственное движение ETH</h3>
+            <div id="eth-intrinsic-move" class="analysis-value">-</div>
+            <p class="analysis-label">На сколько % ETH движется самостоятельно</p>
+        </div>
+        <div class="card">
+            <h3>🎯 Влияние BTC на ETH</h3>
+            <div id="btc-influence" class="analysis-value">-</div>
+            <p class="analysis-label">Процент движения ETH за счет BTC</p>
+        </div>
+        <div class="card">
+            <h3>⚡ Базис ETH</h3>
+            <div id="eth-basis-value" class="analysis-value">-</div>
+            <p class="analysis-label">Разница фьючерс/спот</p>
+        </div>
+        <div class="card">
+            <h3>💪 Сила ETH</h3>
+            <div id="eth-own-power" class="analysis-value">-</div>
+            <p class="analysis-label">Собственная сила ETH</p>
+        </div>
+    </div>
+
+    <!-- ГРАФИК -->
     <div class="chart-container">
         <div id="priceChart" class="loading">
             Загрузка графика...
         </div>
     </div>
 
-    <!-- Анализ -->
-    <div class="card">
-        <h3>📊 Анализ движения цен</h3>
-        <div id="analysis-content">Загрузка анализа...</div>
-    </div>
-
-    <!-- Информация о данных -->
+    <!-- ИНФОРМАЦИЯ -->
     <div class="card">
         <h3>ℹ️ Информация о данных</h3>
         <div id="data-info">
             <div>Текущий символ: <span id="current-symbol">-</span></div>
             <div>Таймфрейм: <span id="current-timeframe">-</span></div>
-            <div>Количество свечей: <span id="current-candle-count">-</span></div>
-            <div>Следующее обновление графика: <span id="next-chart-update">-</span></div>
+            <div>Период анализа: <span id="current-training-days">-</span></div>
+            <div>Последнее обновление: <span id="last-update-time">-</span></div>
         </div>
     </div>
 </div>
@@ -319,13 +328,11 @@
     let isAutoUpdateActive = false;
     let lastPrices = {};
     let currentChartData = null;
-    let priceUpdateAttempts = 0;
-    let chartUpdateAttempts = 0;
 
     // Конфигурация интервалов
     const UPDATE_CONFIG = {
-        PRICES: 3000,      // 3 секунды - обновление цен
-        CHART: 10000,       // 10 секунд - обновление графика
+        PRICES: 2000,
+        CHART: 10000,
     };
 
     // Элементы управления
@@ -342,8 +349,16 @@
         const time = new Date().toLocaleTimeString();
         statusElement.textContent = `[${time}] ${message}`;
         statusElement.style.color = type === 'error' ? '#ff4444' :
-                                  type === 'success' ? '#00ff00' :
-                                  type === 'warning' ? '#ffc107' : 'white';
+            type === 'success' ? '#00ff00' :
+                type === 'warning' ? '#ffc107' : 'white';
+    }
+
+    // Смена периода анализа
+    function changeTrainingPeriod() {
+        const days = document.getElementById('trainingDaysSelect').value;
+        debugLog(`Changing training period to: ${days} days`);
+        showStatus(`🔄 Смена периода анализа на ${days} дней...`, 'info');
+        forceRefreshAll();
     }
 
     // Принудительное обновление всех данных
@@ -358,9 +373,6 @@
     // Загрузка данных графика
     async function loadChartData(showNotification = true) {
         try {
-            chartUpdateAttempts++;
-            debugLog(`📊 Chart load attempt #${chartUpdateAttempts}`);
-
             if (showNotification) {
                 showStatus('Загрузка графика...', 'info');
             }
@@ -370,11 +382,7 @@
             const limit = document.getElementById('candleLimit').value;
 
             const response = await axios.get('/screener/api/chart-data/', {
-                params: {
-                    symbol: symbol,
-                    timeframe: timeframe,
-                    limit: limit
-                },
+                params: { symbol, timeframe, limit },
                 timeout: 10000
             });
 
@@ -389,8 +397,7 @@
                 showStatus('Ошибка загрузки графика: ' + response.data.error, 'error');
             }
         } catch (error) {
-            const errorMsg = error.code === 'ECONNABORTED' ? 'Таймаут' : error.message;
-            showStatus('Ошибка загрузки: ' + errorMsg, 'error');
+            showStatus('Ошибка загрузки: ' + error.message, 'error');
         }
     }
 
@@ -418,19 +425,13 @@
                 low: lows,
                 close: closes,
                 name: chartData.symbol,
-                increasing: {
-                    line: { color: '#00C853' },
-                    fillcolor: '#00C853'
-                },
-                decreasing: {
-                    line: { color: '#FF5252' },
-                    fillcolor: '#FF5252'
-                }
+                increasing: { line: { color: '#00C853' }, fillcolor: '#00C853' },
+                decreasing: { line: { color: '#FF5252' }, fillcolor: '#FF5252' }
             };
 
             const layout = {
                 title: {
-                    text: `${chartData.symbol} - ${chartData.timeframe} | Обновление: 1сек/2сек`,
+                    text: `${chartData.symbol} - ${chartData.timeframe}`,
                     font: { color: 'white', size: 16 }
                 },
                 xaxis: {
@@ -460,19 +461,31 @@
             });
 
         } catch (error) {
-            document.getElementById('priceChart').innerHTML =
-                '<div class="loading">Ошибка отрисовки: ' + error.message + '</div>';
+            document.getElementById('priceChart').innerHTML = '<div class="loading">Ошибка отрисовки: ' + error.message + '</div>';
         }
+    }
+
+    // Обновление информации
+    function updateAnalysisInfo(analysisInfo) {
+        const infoElement = document.getElementById('data-info');
+        if (!infoElement || !analysisInfo) return;
+
+        infoElement.innerHTML = `
+            <div>Текущий символ: <span id="current-symbol">ETH/USDT</span></div>
+            <div>Таймфрейм: <span id="current-timeframe">${document.getElementById('timeframeSelect').value}</span></div>
+            <div>Период анализа: <span id="current-training-days">${analysisInfo.training_days} дней</span></div>
+            <div>Последнее обновление: <span id="last-update-time">${new Date().toLocaleTimeString()}</span></div>
+        `;
     }
 
     // Обновление цен и анализа
     async function updatePrices() {
         try {
-            priceUpdateAttempts++;
-            debugLog(`💰 Price update attempt #${priceUpdateAttempts}`);
+            const trainingDays = document.getElementById('trainingDaysSelect').value;
 
             const response = await axios.get('/screener/api/data/', {
-                timeout: 3000
+                params: { training_days: trainingDays },
+                timeout: 5000
             });
 
             if (response.data.success) {
@@ -482,7 +495,10 @@
                 updatePriceCards(data.prices);
 
                 // Обновляем анализ
-                updateAnalysis(data.analysis);
+                updateAnalysis(data);
+
+                // Обновляем информацию
+                updateAnalysisInfo(data.analysis_info);
 
                 const now = new Date();
                 const ethPrice = data.prices.eth_spot ? `$${data.prices.eth_spot.toFixed(2)}` : 'N/A';
@@ -490,40 +506,34 @@
 
                 statusElement.textContent = `[${now.toLocaleTimeString()}] Цены: ETH=${ethPrice} | BTC=${btcPrice}`;
 
-                debugLog('✅ Prices updated successfully');
             } else {
-                debugLog('❌ Prices update failed:', response.data.error);
+                debugLog('Prices update failed:', response.data.error);
             }
         } catch (error) {
-            debugLog('❌ Prices update error:', error.message);
+            debugLog('Prices update error:', error.message);
             statusElement.textContent = `[${new Date().toLocaleTimeString()}] Ошибка: ${error.message}`;
         }
     }
 
     // Обновление карточек с ценами
     function updatePriceCards(prices) {
-        debugLog('Updating price cards with:', prices);
-
         // ETH Spot
         if (prices.eth_spot !== undefined && prices.eth_spot !== null) {
             const ethElement = document.getElementById('eth-spot-price');
             const oldPrice = lastPrices.eth_spot;
             const newPrice = prices.eth_spot;
 
-            ethElement.textContent = `$${newPrice.toFixed(2)}`;
+            if (ethElement) {
+                ethElement.textContent = `$${newPrice.toFixed(2)}`;
 
-            if (oldPrice && oldPrice !== newPrice) {
-                ethElement.style.color = newPrice > oldPrice ? '#00ff00' : '#ff0000';
-                setTimeout(() => ethElement.style.color = 'white', 600);
-
-                const changeElement = document.getElementById('eth-spot-change');
-                const change = ((newPrice - oldPrice) / oldPrice * 100).toFixed(3);
-                changeElement.textContent = `${change >= 0 ? '+' : ''}${change}%`;
-                changeElement.className = `change ${change >= 0 ? 'up' : 'down'}`;
-            } else if (!oldPrice) {
-                const changeElement = document.getElementById('eth-spot-change');
-                changeElement.textContent = '0.000%';
-                changeElement.className = 'change';
+                if (oldPrice && oldPrice !== newPrice) {
+                    const change = ((newPrice - oldPrice) / oldPrice * 100).toFixed(3);
+                    const changeElement = document.getElementById('eth-spot-change');
+                    if (changeElement) {
+                        changeElement.textContent = `${change >= 0 ? '+' : ''}${change}%`;
+                        changeElement.className = `change ${change >= 0 ? 'up' : 'down'}`;
+                    }
+                }
             }
         }
 
@@ -533,42 +543,51 @@
             const oldPrice = lastPrices.btc_spot;
             const newPrice = prices.btc_spot;
 
-            btcElement.textContent = `$${newPrice.toFixed(2)}`;
+            if (btcElement) {
+                btcElement.textContent = `$${newPrice.toFixed(2)}`;
 
-            if (oldPrice && oldPrice !== newPrice) {
-                btcElement.style.color = newPrice > oldPrice ? '#00ff00' : '#ff0000';
-                setTimeout(() => btcElement.style.color = 'white', 600);
-
-                const changeElement = document.getElementById('btc-spot-change');
-                const change = ((newPrice - oldPrice) / oldPrice * 100).toFixed(3);
-                changeElement.textContent = `${change >= 0 ? '+' : ''}${change}%`;
-                changeElement.className = `change ${change >= 0 ? 'up' : 'down'}`;
-            } else if (!oldPrice) {
-                const changeElement = document.getElementById('btc-spot-change');
-                changeElement.textContent = '0.000%';
-                changeElement.className = 'change';
+                if (oldPrice && oldPrice !== newPrice) {
+                    const change = ((newPrice - oldPrice) / oldPrice * 100).toFixed(3);
+                    const changeElement = document.getElementById('btc-spot-change');
+                    if (changeElement) {
+                        changeElement.textContent = `${change >= 0 ? '+' : ''}${change}%`;
+                        changeElement.className = `change ${change >= 0 ? 'up' : 'down'}`;
+                    }
+                }
             }
         }
 
         // ETH Futures
         if (prices.eth_futures !== undefined && prices.eth_futures !== null) {
-            document.getElementById('eth-futures-price').textContent = `$${prices.eth_futures.toFixed(2)}`;
+            const futuresElement = document.getElementById('eth-futures-price');
+            if (futuresElement) {
+                futuresElement.textContent = `$${prices.eth_futures.toFixed(2)}`;
+            }
 
             if (prices.eth_spot) {
                 const basis = ((prices.eth_futures - prices.eth_spot) / prices.eth_spot * 100).toFixed(3);
-                document.getElementById('eth-basis').textContent = `Basis: ${basis}%`;
-                document.getElementById('eth-basis').className = `change ${basis >= 0 ? 'up' : 'down'}`;
+                const basisElement = document.getElementById('eth-basis');
+                if (basisElement) {
+                    basisElement.textContent = `Basis: ${basis}%`;
+                    basisElement.className = `change ${basis >= 0 ? 'up' : 'down'}`;
+                }
             }
         }
 
         // BTC Futures
         if (prices.btc_futures !== undefined && prices.btc_futures !== null) {
-            document.getElementById('btc-futures-price').textContent = `$${prices.btc_futures.toFixed(2)}`;
+            const futuresElement = document.getElementById('btc-futures-price');
+            if (futuresElement) {
+                futuresElement.textContent = `$${prices.btc_futures.toFixed(2)}`;
+            }
 
             if (prices.btc_spot) {
                 const basis = ((prices.btc_futures - prices.btc_spot) / prices.btc_spot * 100).toFixed(3);
-                document.getElementById('btc-basis').textContent = `Basis: ${basis}%`;
-                document.getElementById('btc-basis').className = `change ${basis >= 0 ? 'up' : 'down'}`;
+                const basisElement = document.getElementById('btc-basis');
+                if (basisElement) {
+                    basisElement.textContent = `Basis: ${basis}%`;
+                    basisElement.className = `change ${basis >= 0 ? 'up' : 'down'}`;
+                }
             }
         }
 
@@ -576,105 +595,104 @@
     }
 
     // Обновление анализа
-    function updateAnalysis(analysis) {
-        const analysisElement = document.getElementById('analysis-content');
-        if (!analysisElement || !analysis) return;
+    function updateAnalysis(data) {
+        const technical = data.technical_analysis || data.analysis || {};
+        const scenario = data.market_scenario || {};
 
-        let analysisHTML = '';
+        // ОБНОВЛЯЕМ КАРТОЧКИ АНАЛИЗА
+        updateAnalysisCards(technical, scenario);
 
-        if (analysis.models_ready) {
-            analysisHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
-                    <div>
-                        <strong>Собственное движение:</strong><br>
-                        Spot: <span class="${analysis.spot_intrinsic >= 0 ? 'up' : 'down'}">${analysis.spot_intrinsic?.toFixed(3) || '0.000'}%</span><br>
-                        Futures: <span class="${analysis.futures_intrinsic >= 0 ? 'up' : 'down'}">${analysis.futures_intrinsic?.toFixed(3) || '0.000'}%</span>
-                    </div>
-                    <div>
-                        <strong>Базис:</strong><br>
-                        ETH: <span class="${analysis.basis_eth >= 0 ? 'up' : 'down'}">${analysis.basis_eth?.toFixed(3) || '0.000'}%</span><br>
-                        BTC: <span class="${analysis.basis_btc >= 0 ? 'up' : 'down'}">${analysis.basis_btc?.toFixed(3) || '0.000'}%</span>
-                    </div>
-                </div>
-            `;
-        } else {
-            analysisHTML = '<div>📊 Модели в процессе обучения...</div>';
-        }
-
-        analysisElement.innerHTML = analysisHTML;
+        // ОБНОВЛЯЕМ ОБЩИЙ ВЫВОД
+        updateSummary(technical, scenario);
     }
 
-    // Автообновление графика
-    async function autoUpdateChart() {
-        if (!isAutoUpdateActive) {
-            debugLog('Auto-update disabled, skipping chart update');
+    // Обновление карточек анализа
+    function updateAnalysisCards(technical, scenario) {
+        // Собственное движение
+        const intrinsicElement = document.getElementById('eth-intrinsic-move');
+        if (intrinsicElement && technical.spot_intrinsic !== undefined) {
+            intrinsicElement.textContent = `${technical.spot_intrinsic >= 0 ? '+' : ''}${technical.spot_intrinsic.toFixed(3)}%`;
+            intrinsicElement.className = `analysis-value ${technical.spot_intrinsic >= 0 ? 'up' : 'down'}`;
+        }
+
+        // Влияние BTC
+        const influenceElement = document.getElementById('btc-influence');
+        if (influenceElement && technical.spot_btc_influence !== undefined) {
+            influenceElement.textContent = `${Math.abs(technical.spot_btc_influence).toFixed(1)}%`;
+            influenceElement.className = 'analysis-value';
+        }
+
+        // Базис ETH
+        const basisElement = document.getElementById('eth-basis-value');
+        if (basisElement && technical.basis_eth !== undefined) {
+            basisElement.textContent = `${technical.basis_eth >= 0 ? '+' : ''}${technical.basis_eth.toFixed(3)}%`;
+            basisElement.className = `analysis-value ${technical.basis_eth >= 0 ? 'up' : 'down'}`;
+        }
+
+        // Собственная сила ETH
+        const powerElement = document.getElementById('eth-own-power');
+        if (powerElement && technical.spot_eth_own !== undefined) {
+            powerElement.textContent = `${Math.abs(technical.spot_eth_own).toFixed(1)}%`;
+            powerElement.className = 'analysis-value';
+        }
+    }
+
+    // Обновление общего вывода
+    function updateSummary(technical, scenario) {
+        const summaryElement = document.getElementById('summaryText');
+        if (!summaryElement) return;
+
+        if (!technical.models_ready) {
+            summaryElement.textContent = '📊 Модели в процессе обучения...';
             return;
         }
-        await loadChartData(false);
+
+        const intrinsic = technical.spot_intrinsic || 0;
+        const btcInfluence = technical.spot_btc_influence || 0;
+        const ethPower = technical.spot_eth_own || 0;
+
+        let summary = '';
+
+        if (intrinsic > 2.0) {
+            summary = `🚀 ETH показывает СИЛЬНУЮ САМОСТОЯТЕЛЬНОСТЬ! Растет на ${intrinsic.toFixed(1)}% лучше чем обычно следует за BTC`;
+        } else if (intrinsic > 0.5) {
+            summary = `📈 ETH немного ОПЕРЕЖАЕТ BTC (+${intrinsic.toFixed(1)}%). За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%, собственная сила: ${Math.abs(ethPower).toFixed(0)}%`;
+        } else if (intrinsic > -0.5) {
+            summary = `⚖️ ETH движется В СООТВЕТСТВИИ С BTC (${intrinsic.toFixed(1)}%). За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%`;
+        } else if (intrinsic > -2.0) {
+            summary = `📉 ETH немного ОТСТАЕТ ОТ BTC (${intrinsic.toFixed(1)}%). За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%`;
+        } else {
+            summary = `🔻 ETH показывает СЛАБОСТЬ! Отстает на ${Math.abs(intrinsic).toFixed(1)}% от BTC. За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%`;
+        }
+
+        summaryElement.textContent = summary;
     }
 
     // Управление автообновлением
     function startAutoUpdate() {
-        if (isAutoUpdateActive) {
-            debugLog('Auto-update already active');
-            return;
-        }
+        if (isAutoUpdateActive) return;
 
-        debugLog('🚀 STARTING AUTO-UPDATE SYSTEM...');
         isAutoUpdateActive = true;
-
-        // Останавливаем предыдущие интервалы
-        if (autoUpdateInterval) {
-            clearInterval(autoUpdateInterval);
-            autoUpdateInterval = null;
-        }
-        if (chartUpdateInterval) {
-            clearInterval(chartUpdateInterval);
-            chartUpdateInterval = null;
-        }
-
-        // ЗАПУСКАЕМ ОБНОВЛЕНИЕ ЦЕН КАЖДУЮ СЕКУНДУ
         autoUpdateInterval = setInterval(updatePrices, UPDATE_CONFIG.PRICES);
-        debugLog(`✅ PRICE update interval started: ${UPDATE_CONFIG.PRICES}ms`);
+        chartUpdateInterval = setInterval(() => loadChartData(false), UPDATE_CONFIG.CHART);
 
-        // Запускаем обновление графика каждые 2 секунды
-        chartUpdateInterval = setInterval(autoUpdateChart, UPDATE_CONFIG.CHART);
-        debugLog(`✅ CHART update interval started: ${UPDATE_CONFIG.CHART}ms`);
-
-        // Обновляем UI
         autoUpdateBtn.textContent = '⏹️ Остановить автообновление';
         autoUpdateBtn.className = 'btn-danger';
-
-        showStatus('🚀 АВТООБНОВЛЕНИЕ ВКЛЮЧЕНО! Цены: 1сек, График: 2сек', 'success');
-
-        // Сразу обновляем данные при старте
-        debugLog('Performing initial price update...');
+        showStatus('🚀 АВТООБНОВЛЕНИЕ ВКЛЮЧЕНО!', 'success');
         updatePrices();
     }
 
     function stopAutoUpdate() {
-        debugLog('🛑 STOPPING AUTO-UPDATE SYSTEM...');
         isAutoUpdateActive = false;
-
-        if (autoUpdateInterval) {
-            clearInterval(autoUpdateInterval);
-            autoUpdateInterval = null;
-            debugLog('✅ Price update interval stopped');
-        }
-        if (chartUpdateInterval) {
-            clearInterval(chartUpdateInterval);
-            chartUpdateInterval = null;
-            debugLog('✅ Chart update interval stopped');
-        }
+        if (autoUpdateInterval) clearInterval(autoUpdateInterval);
+        if (chartUpdateInterval) clearInterval(chartUpdateInterval);
 
         autoUpdateBtn.textContent = '▶️ Включить автообновление';
         autoUpdateBtn.className = 'btn-success';
-
         showStatus('⏹️ Автообновление ВЫКЛЮЧЕНО', 'info');
     }
 
     function toggleAutoUpdate() {
-        debugLog('Toggle auto-update clicked');
         if (isAutoUpdateActive) {
             stopAutoUpdate();
         } else {
@@ -684,77 +702,25 @@
 
     // Быстрый выбор таймфрейма
     function setTimeframe(tf) {
-        debugLog(`Setting timeframe to: ${tf}`);
         document.getElementById('timeframeSelect').value = tf;
         loadChartData();
     }
 
-    // Инициализация при загрузке страницы
-    document.addEventListener('DOMContentLoaded', async function() {
-        debugLog('=== PAGE LOADED, INITIALIZING APPLICATION ===');
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', async function () {
         showStatus('Инициализация приложения...', 'info');
-
-        // Загружаем начальные данные графика
-        debugLog('Loading initial chart data...');
         await loadChartData();
-
-        // ОБНОВЛЯЕМ ЦЕНЫ СРАЗУ ПРИ ЗАГРУЗКЕ
-        debugLog('Loading initial prices...');
         await updatePrices();
-
-        // ВКЛЮЧАЕМ АВТООБНОВЛЕНИЕ
-        debugLog('Starting auto-update system...');
         startAutoUpdate();
-
-        showStatus('✅ Приложение готово! Обновление: цены 1сек, график 2сек', 'success');
-        debugLog('=== APPLICATION INITIALIZED SUCCESSFULLY ===');
+        showStatus('✅ Приложение готово!', 'success');
     });
 
     // Обработчики событий
-    document.getElementById('symbolSelect').addEventListener('change', () => {
-        debugLog('Symbol changed');
-        loadChartData();
-    });
-
-    document.getElementById('timeframeSelect').addEventListener('change', () => {
-        debugLog('Timeframe changed');
-        loadChartData();
-    });
-
-    document.getElementById('candleLimit').addEventListener('change', () => {
-        debugLog('Candle limit changed');
-        loadChartData();
-    });
-
-    // Обработчик перед закрытием страницы
-    window.addEventListener('beforeunload', function() {
-        debugLog('Page unloading, stopping updates...');
-        stopAutoUpdate();
-    });
-
-    // ТЕСТОВАЯ ФУНКЦИЯ - можно вызвать из консоли браузера
-    window.testAutoUpdate = function() {
-        console.log('=== TESTING AUTO-UPDATE ===');
-        console.log('isAutoUpdateActive:', isAutoUpdateActive);
-        console.log('autoUpdateInterval:', autoUpdateInterval);
-        console.log('chartUpdateInterval:', chartUpdateInterval);
-        console.log('UPDATE_CONFIG:', UPDATE_CONFIG);
-
-        // Принудительно запускаем обновление цен
-        updatePrices();
-    };
-</script>
-<script>
-    // Немедленное обновление цен при загрузке
-    document.addEventListener('DOMContentLoaded', function () {
-        console.log('Immediate price update on load');
-        // Вызываем updatePrices через небольшую задержку, чтобы убедиться что всё загрузилось
-        setTimeout(() => {
-            if (typeof updatePrices === 'function') {
-                updatePrices();
-            }
-        }, 1000);
-    });
+    document.getElementById('symbolSelect').addEventListener('change', loadChartData);
+    document.getElementById('timeframeSelect').addEventListener('change', loadChartData);
+    document.getElementById('candleLimit').addEventListener('change', loadChartData);
+    document.getElementById('trainingDaysSelect').addEventListener('change', changeTrainingPeriod);
+    window.addEventListener('beforeunload', stopAutoUpdate);
 </script>
 </body>
 </html>

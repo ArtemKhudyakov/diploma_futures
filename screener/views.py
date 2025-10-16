@@ -5,7 +5,7 @@ import logging
 from screener.services.bybit_api import BybitAPI
 from screener.services.price_analyzer import PriceAnalyzer
 import math
-from datetime import datetime, timedelta
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -22,23 +22,32 @@ class RealtimeView(View):
 class DataAPIView(View):
     def get(self, request):
         try:
-            logger.info("DataAPIView called")
+            training_days = int(request.GET.get('training_days', 7))
 
+            # ВСЕГДА обновляем период и перезагружаем данные
+            analyzer.set_training_period(training_days)
+
+            # ПРИНУДИТЕЛЬНО загружаем данные с новым периодом
+            self._load_historical_data(training_days)
+
+            # Остальной код без изменений...
             prices = api.get_correct_prices()
-            logger.info(f"Prices from API: {prices}")
 
-            # Загружаем исторические данные для анализа если нужно
+            # Если модели еще не готовы, пробуем построить их
             if not analyzer.spot_coef:
-                self._load_historical_data()
+                analyzer._build_regression_models()
 
             analysis = analyzer.analyze_movement(prices)
-            logger.info(f"Analysis result: {analysis}")
+            market_scenario = analyzer.get_market_scenario(analysis)
+            analysis_info = analyzer.get_analysis_info()
 
             return JsonResponse({
                 'success': True,
                 'data': {
                     'prices': prices,
-                    'analysis': analysis,
+                    'technical_analysis': analysis,
+                    'market_scenario': market_scenario,
+                    'analysis_info': analysis_info,
                     'last_update': datetime.now().isoformat()
                 }
             })
@@ -47,15 +56,31 @@ class DataAPIView(View):
             logger.error(f"DataAPIView error: {e}")
             return JsonResponse({'success': False, 'error': str(e)})
 
-    def _load_historical_data(self):
+    def _load_historical_data(self, training_days: int):
+        """Загрузка исторических данных с указанным периодом"""
         try:
-            eth_klines = api.get_historical_data("ETHUSDT", "spot", "15m", 2)
-            btc_klines = api.get_historical_data("BTCUSDT", "spot", "15m", 2)
+            # ВСЕГДА загружаем новые данные при смене периода
+            eth_klines = api.get_historical_data("ETHUSDT", "spot", "15m", training_days)
+            btc_klines = api.get_historical_data("BTCUSDT", "spot", "15m", training_days)
 
             if eth_klines and btc_klines:
                 eth_prices = [kline['close'] for kline in eth_klines]
                 btc_prices = [kline['close'] for kline in btc_klines]
+
+                # ОЧИЩАЕМ старые данные перед добавлением новых
+                analyzer.historical_data['eth_spot'] = []
+                analyzer.historical_data['btc_spot'] = []
+                analyzer.historical_data['eth_futures'] = []
+                analyzer.historical_data['btc_futures'] = []
+
                 analyzer.add_historical_data(eth_prices, btc_prices, eth_prices, btc_prices)
+                logger.info(f"Загружено {len(eth_prices)} точек данных за {training_days} дней")
+
+                # СБРАСЫВАЕМ модели чтобы перестроить их на новых данных
+                analyzer.spot_coef = None
+                analyzer.spot_intercept = None
+                analyzer.futures_coef = None
+                analyzer.futures_intercept = None
 
         except Exception as e:
             logger.error(f"Ошибка загрузки исторических данных: {e}")
@@ -175,40 +200,6 @@ class ChartDataAPIView(View):
 
         days_needed = (limit / candles_per_day.get(timeframe, 24)) + 1
         return min(math.ceil(days_needed), 60)  # максимум 60 дней для больших таймфреймов
-
-    def _get_current_price_for_symbol(self, prices, symbol):
-        """Получает текущую цену для символа"""
-        symbol_map = {
-            'ETHUSDT': 'eth_spot',
-            'BTCUSDT': 'btc_spot'
-        }
-        price_key = symbol_map.get(symbol)
-        return prices.get(price_key) if price_key else None
-
-    def _format_klines(self, klines):
-        """Форматирует свечи для фронтенда"""
-        formatted = []
-        for kline in klines:
-            formatted.append({
-                'time': kline['timestamp'] // 1000,  # конвертируем в секунды для Plotly
-                'open': float(kline['open']),
-                'high': float(kline['high']),
-                'low': float(kline['low']),
-                'close': float(kline['close']),
-                'volume': float(kline.get('volume', 0))
-            })
-        return formatted
-
-    def _calculate_days_needed(self, timeframe, limit):
-        """Рассчитывает сколько дней истории нужно для указанного количества свечей"""
-        candles_per_day = {
-            '1m': 1440, '5m': 288, '15m': 96, '30m': 48,
-            '1h': 24, '2h': 12, '4h': 6, '6h': 4, '12h': 2,
-            '1d': 1, '1w': 0.14, '1M': 0.03
-        }
-
-        days_needed = (limit / candles_per_day.get(timeframe, 24)) + 1
-        return min(math.ceil(days_needed), 30)  # максимум 30 дней
 
     def _get_current_price_for_symbol(self, prices, symbol):
         """Получает текущую цену для символа"""

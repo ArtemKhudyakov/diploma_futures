@@ -247,29 +247,26 @@ class BybitAPI:
                             timeframe: str = '1h', days: int = 1) -> List[Dict]:
         """
         Получение исторических данных за несколько дней
-        timeframe: '1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w', '1M'
         """
-        # Правильный маппинг таймфреймов для Bybit API
         timeframe_mapping = {
             '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
             '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
             '1d': 'D', '1w': 'W', '1M': 'M'
         }
 
-        interval = timeframe_mapping.get(timeframe, '60')  # по умолчанию 1 час
+        interval = timeframe_mapping.get(timeframe, '60')
 
-        # Определяем сколько свечей нужно
-        intervals_minutes = {
-            '1m': 1, '3m': 3, '5m': 5, '15m': 15, '30m': 30,
-            '1h': 60, '2h': 120, '4h': 240, '6h': 360, '12h': 720,
-            '1d': 1440, '1w': 10080, '1M': 43200
+        # РАССЧИТЫВАЕМ точное количество свечей
+        candles_per_day = {
+            '1m': 1440, '3m': 480, '5m': 288, '15m': 96, '30m': 48,
+            '1h': 24, '2h': 12, '4h': 6, '6h': 4, '12h': 2,
+            '1d': 1, '1w': 0.14, '1M': 0.03
         }
 
-        minutes_per_candle = intervals_minutes.get(timeframe, 60)
-        total_candles_needed = (days * 24 * 60) // minutes_per_candle
-        total_candles_needed = min(total_candles_needed, 1000)  # Ограничиваем 1000 свечей
+        total_candles_needed = int(candles_per_day.get(timeframe, 24) * days)
+        total_candles_needed = min(total_candles_needed, 1000)  # Ограничение API
 
-        logger.info(f"Загрузка {total_candles_needed} свечей {symbol} {category} {timeframe} за {days} дней")
+        logger.info(f"Загрузка {total_candles_needed} свечей {symbol} за {days} дней (таймфрейм: {timeframe})")
 
         # Получаем данные одним запросом
         klines = self.get_klines(symbol, category, interval, total_candles_needed)

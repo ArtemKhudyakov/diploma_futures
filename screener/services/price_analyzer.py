@@ -1,181 +1,14 @@
-# import numpy as np
-# from collections import deque
-# from typing import Optional, Dict
-# import logging
-# from datetime import datetime
-#
-# logger = logging.getLogger(__name__)
-#
-#
-# class PriceAnalyzer:
-#     def __init__(self, window_size: int = 1440, use_database: bool = True):
-#         self.window_size = window_size
-#         self.use_database = use_database
-#
-#         # Данные для анализа
-#         self.eth_spot_prices = deque(maxlen=window_size)
-#         self.eth_futures_prices = deque(maxlen=window_size)
-#         self.btc_spot_prices = deque(maxlen=window_size)
-#         self.btc_futures_prices = deque(maxlen=window_size)
-#
-#         # Модели регрессии
-#         self.spot_regression_coef = None
-#         self.spot_regression_intercept = None
-#         self.futures_regression_coef = None
-#         self.futures_regression_intercept = None
-#
-#         # Если используем БД - загружаем исторические данные
-#         if use_database:
-#             self._load_historical_data()
-#
-#     def _load_historical_data(self):
-#         """
-#         Загрузка исторических данных из БД при инициализации
-#         """
-#         try:
-#             from screener.services.history_service import HistoryService
-#
-#             history_service = HistoryService()
-#
-#             # Загружаем последние данные для каждого инструмента
-#             eth_spot = history_service.get_latest_prices('ETHUSDT', 'spot', self.window_size)
-#             btc_spot = history_service.get_latest_prices('BTCUSDT', 'spot', self.window_size)
-#             eth_futures = history_service.get_latest_prices('ETHUSDT', 'linear', self.window_size)
-#             btc_futures = history_service.get_latest_prices('BTCUSDT', 'linear', self.window_size)
-#
-#             # Заполняем очереди
-#             for price in eth_spot:
-#                 self.eth_spot_prices.append(price)
-#             for price in btc_spot:
-#                 self.btc_spot_prices.append(price)
-#             for price in eth_futures:
-#                 self.eth_futures_prices.append(price)
-#             for price in btc_futures:
-#                 self.btc_futures_prices.append(price)
-#
-#             # Сразу обновляем модели если данных достаточно
-#             if len(self.eth_spot_prices) >= 60:
-#                 self.update_regression_models()
-#
-#             logger.info(f"Загружено исторических данных: "
-#                         f"ETH Spot: {len(self.eth_spot_prices)}, "
-#                         f"BTC Spot: {len(self.btc_spot_prices)}, "
-#                         f"ETH Futures: {len(self.eth_futures_prices)}, "
-#                         f"BTC Futures: {len(self.btc_futures_prices)}")
-#
-#         except Exception as e:
-#             logger.error(f"Ошибка загрузки исторических данных: {e}")
-#
-#     def update_data(self, prices: Dict[str, float]):
-#         """Обновление данных готовыми ценами из BybitClient"""
-#         if prices.get('eth_spot'):
-#             self.eth_spot_prices.append(prices['eth_spot'])
-#         if prices.get('eth_futures'):
-#             self.eth_futures_prices.append(prices['eth_futures'])
-#         if prices.get('btc_spot'):
-#             self.btc_spot_prices.append(prices['btc_spot'])
-#         if prices.get('btc_futures'):
-#             self.btc_futures_prices.append(prices['btc_futures'])
-#
-#     def update_regression_models(self):
-#         """Обновление моделей линейной регрессии"""
-#         # Модель для спотовых цен
-#         if len(self.eth_spot_prices) >= 60 and len(self.btc_spot_prices) >= 60:
-#             eth_spot_array = np.array(self.eth_spot_prices)
-#             btc_spot_array = np.array(self.btc_spot_prices)
-#
-#             X_spot = np.column_stack([np.ones(len(btc_spot_array)), btc_spot_array])
-#             coefficients_spot = np.linalg.lstsq(X_spot, eth_spot_array, rcond=None)[0]
-#
-#             self.spot_regression_intercept = coefficients_spot[0]
-#             self.spot_regression_coef = coefficients_spot[1]
-#
-#             logger.info(
-#                 f"Spot модель: ETH = {self.spot_regression_intercept:.2f} + {self.spot_regression_coef:.4f} * BTC")
-#
-#         # Модель для фьючерсных цен
-#         if len(self.eth_futures_prices) >= 60 and len(self.btc_futures_prices) >= 60:
-#             eth_futures_array = np.array(self.eth_futures_prices)
-#             btc_futures_array = np.array(self.btc_futures_prices)
-#
-#             X_futures = np.column_stack([np.ones(len(btc_futures_array)), btc_futures_array])
-#             coefficients_futures = np.linalg.lstsq(X_futures, eth_futures_array, rcond=None)[0]
-#
-#             self.futures_regression_intercept = coefficients_futures[0]
-#             self.futures_regression_coef = coefficients_futures[1]
-#
-#             logger.info(
-#                 f"Futures модель: ETH = {self.futures_regression_intercept:.2f} + {self.futures_regression_coef:.4f} * BTC")
-#
-#     def calculate_intrinsic_movement(self, current_prices: Dict[str, float]) -> Dict[str, float]:
-#         """Расчет собственного движения для спота и фьючерсов"""
-#         result = {}
-#
-#         # Собственное движение спота
-#         if (self.spot_regression_coef is not None and
-#                 current_prices.get('eth_spot') and
-#                 current_prices.get('btc_spot')):
-#             predicted_eth_spot = (self.spot_regression_intercept +
-#                                   self.spot_regression_coef * current_prices['btc_spot'])
-#             spot_intrinsic = ((current_prices['eth_spot'] - predicted_eth_spot) / predicted_eth_spot) * 100
-#             result['spot_intrinsic'] = spot_intrinsic
-#
-#         # Собственное движение фьючерсов
-#         if (self.futures_regression_coef is not None and
-#                 current_prices.get('eth_futures') and
-#                 current_prices.get('btc_futures')):
-#             predicted_eth_futures = (self.futures_regression_intercept +
-#                                      self.futures_regression_coef * current_prices['btc_futures'])
-#             futures_intrinsic = ((current_prices['eth_futures'] - predicted_eth_futures) / predicted_eth_futures) * 100
-#             result['futures_intrinsic'] = futures_intrinsic
-#
-#         return result
-#
-#     def check_price_changes(self) -> Dict[str, Optional[dict]]:
-#         """Проверка изменений цен за 60 минут"""
-#         alerts = {}
-#
-#         # Проверка спотовых цен ETH
-#         if len(self.eth_spot_prices) >= 60:
-#             current_spot = self.eth_spot_prices[-1]
-#             spot_60min_ago = self.eth_spot_prices[-60]
-#             spot_change = ((current_spot - spot_60min_ago) / spot_60min_ago) * 100
-#
-#             if abs(spot_change) >= 1.0:
-#                 alerts['eth_spot'] = {
-#                     'change_pct': spot_change,
-#                     'current_price': current_spot,
-#                     'price_60min_ago': spot_60min_ago,
-#                     'type': 'spot'
-#                 }
-#
-#         # Проверка фьючерсных цен ETH
-#         if len(self.eth_futures_prices) >= 60:
-#             current_futures = self.eth_futures_prices[-1]
-#             futures_60min_ago = self.eth_futures_prices[-60]
-#             futures_change = ((current_futures - futures_60min_ago) / futures_60min_ago) * 100
-#
-#             if abs(futures_change) >= 1.0:
-#                 alerts['eth_futures'] = {
-#                     'change_pct': futures_change,
-#                     'current_price': current_futures,
-#                     'price_60min_ago': futures_60min_ago,
-#                     'type': 'futures'
-#                 }
-#
-#         return alerts
-
-
 import numpy as np
 from typing import Dict, Optional
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
 
 class PriceAnalyzer:
     """
-    Анализатор для расчета базиса и собственного движения
+    Анализатор для расчета собственного движения с настраиваемой базой
     """
 
     def __init__(self):
@@ -184,31 +17,45 @@ class PriceAnalyzer:
         self.futures_coef = None
         self.futures_intercept = None
 
-        # Исторические данные для регрессии
-        self.eth_spot_history = []
-        self.btc_spot_history = []
-        self.eth_futures_history = []
-        self.btc_futures_history = []
+        # Храним все исторические данные
+        self.historical_data = {
+            'eth_spot': [],
+            'btc_spot': [],
+            'eth_futures': [],
+            'btc_futures': []
+        }
+
+        # Настройки по умолчанию
+        self.training_days = 7  # дней для анализа
+
+    def set_training_period(self, days: int):
+        """Установка периода для анализа"""
+        self.training_days = days
+        logger.info(f"Установлен период анализа: {days} дней")
 
     def add_historical_data(self, eth_spot: list, btc_spot: list,
                             eth_futures: list, btc_futures: list):
         """
-        Добавление исторических данных для построения моделей
+        Добавление исторических данных
         """
-        self.eth_spot_history = eth_spot
-        self.btc_spot_history = btc_spot
-        self.eth_futures_history = eth_futures
-        self.btc_futures_history = btc_futures
+        self.historical_data['eth_spot'] = eth_spot
+        self.historical_data['btc_spot'] = btc_spot
+        self.historical_data['eth_futures'] = eth_futures
+        self.historical_data['btc_futures'] = btc_futures
 
-        # Строим модели регрессии
         self._build_regression_models()
 
     def _build_regression_models(self):
         """Построение моделей линейной регрессии"""
+        eth_spot = self.historical_data['eth_spot']
+        btc_spot = self.historical_data['btc_spot']
+        eth_futures = self.historical_data['eth_futures']
+        btc_futures = self.historical_data['btc_futures']
+
         # Модель для спота
-        if len(self.eth_spot_history) >= 60 and len(self.btc_spot_history) >= 60:
-            eth_array = np.array(self.eth_spot_history)
-            btc_array = np.array(self.btc_spot_history)
+        if len(eth_spot) >= 60 and len(btc_spot) >= 60:
+            eth_array = np.array(eth_spot)
+            btc_array = np.array(btc_spot)
 
             X = np.column_stack([np.ones(len(btc_array)), btc_array])
             coefficients = np.linalg.lstsq(X, eth_array, rcond=None)[0]
@@ -216,12 +63,13 @@ class PriceAnalyzer:
             self.spot_intercept = coefficients[0]
             self.spot_coef = coefficients[1]
 
-            logger.info(f"Спот модель: ETH = {self.spot_intercept:.2f} + {self.spot_coef:.6f}×BTC")
+            logger.info(
+                f"Спот модель ({len(eth_spot)} точек): ETH = {self.spot_intercept:.2f} + {self.spot_coef:.6f}×BTC")
 
         # Модель для фьючерсов
-        if len(self.eth_futures_history) >= 60 and len(self.btc_futures_history) >= 60:
-            eth_array = np.array(self.eth_futures_history)
-            btc_array = np.array(self.btc_futures_history)
+        if len(eth_futures) >= 60 and len(btc_futures) >= 60:
+            eth_array = np.array(eth_futures)
+            btc_array = np.array(btc_futures)
 
             X = np.column_stack([np.ones(len(btc_array)), btc_array])
             coefficients = np.linalg.lstsq(X, eth_array, rcond=None)[0]
@@ -229,7 +77,18 @@ class PriceAnalyzer:
             self.futures_intercept = coefficients[0]
             self.futures_coef = coefficients[1]
 
-            logger.info(f"Фьючерс модель: ETH = {self.futures_intercept:.2f} + {self.futures_coef:.6f}×BTC")
+            logger.info(
+                f"Фьючерс модель ({len(eth_futures)} точек): ETH = {self.futures_intercept:.2f} + {self.futures_coef:.6f}×BTC")
+
+    def get_analysis_info(self) -> Dict:
+        """Информация о текущих настройках анализа"""
+        return {
+            'training_days': self.training_days,
+            'data_points_spot': len(self.historical_data['eth_spot']),
+            'data_points_futures': len(self.historical_data['eth_futures']),
+            'spot_model_ready': self.spot_coef is not None,
+            'futures_model_ready': self.futures_coef is not None
+        }
 
     def calculate_basis(self, eth_spot: float, eth_futures: float) -> float:
         """
@@ -282,14 +141,23 @@ class PriceAnalyzer:
             actual_eth_spot = current_prices['eth_spot']
             result['spot_intrinsic'] = ((actual_eth_spot - predicted_eth_spot) / predicted_eth_spot) * 100
 
-            # Влияние BTC (ожидаемое движение)
-            expected_move = ((predicted_eth_spot - self.eth_spot_history[-1]) / self.eth_spot_history[-1]) * 100
-            actual_total_move = ((actual_eth_spot - self.eth_spot_history[-1]) / self.eth_spot_history[-1]) * 100
+            # Влияние BTC и собственное движение ETH (если есть исторические данные)
+            eth_history = self.historical_data['eth_spot']
+            btc_history = self.historical_data['btc_spot']
 
-            # Распределение влияния
-            if actual_total_move != 0:
-                result['spot_btc_influence'] = (expected_move / actual_total_move) * 100
-                result['spot_eth_own'] = (result['spot_intrinsic'] / actual_total_move) * 100
+            if len(eth_history) >= 2:
+                # Ожидаемое движение (по модели)
+                last_btc_price = btc_history[-1] if btc_history else current_prices['btc_spot']
+                predicted_previous_eth = self.spot_intercept + self.spot_coef * last_btc_price
+                last_eth_price = eth_history[-1] if eth_history else current_prices['eth_spot']
+
+                expected_move = ((predicted_eth_spot - predicted_previous_eth) / predicted_previous_eth) * 100
+                actual_total_move = ((actual_eth_spot - last_eth_price) / last_eth_price) * 100
+
+                # Распределение влияния
+                if actual_total_move != 0:
+                    result['spot_btc_influence'] = (expected_move / actual_total_move) * 100
+                    result['spot_eth_own'] = (result['spot_intrinsic'] / actual_total_move) * 100
 
         # Аналогично для фьючерсов
         if (self.futures_coef is not None and
@@ -330,14 +198,85 @@ class PriceAnalyzer:
 
                 # Простое объяснение
                 if analysis['spot_intrinsic'] > 1.0:
-                    report.append(f"   💚 ETH растет самостоятельно!")
+                    report.append(f"   🚀 ETH растет самостоятельно!")
                 elif analysis['spot_intrinsic'] < -1.0:
-                    report.append(f"   💔 ETH падает самостоятельно!")
+                    report.append(f"   🔻 ETH падает самостоятельно!")
                 else:
-                    report.append(f"   💙 Движение ETH соответствует BTC")
+                    report.append(f"   🔗 Движение ETH соответствует BTC")
 
         else:
-            report.append(f"\n⏳ Модели в процессе обучения...")
+            report.append(f"\n🔄 Модели в процессе обучения...")
 
         report.append("=" * 50)
         return "\n".join(report)
+
+    def get_market_scenario(self, analysis: Dict) -> Dict:
+        """
+        Преобразует технический анализ в понятный рыночный сценарий
+        """
+        scenario = {
+            'eth_strength': 0.0,  # Сила ETH от -100% до +100%
+            'market_scenario': 'neutral',
+            'eth_performance': 'average',
+            'explanation': 'Анализ в процессе...',
+            'simple_breakdown': {
+                'btc_influence': 50,
+                'eth_own_power': 50
+            }
+        }
+
+        if not analysis.get('models_ready'):
+            return scenario
+
+        # Используем существующий spot_intrinsic для определения силы
+        intrinsic_move = analysis.get('spot_intrinsic', 0)
+
+        # Нормализуем силу ETH (-100% до +100%)
+        strength = max(min(intrinsic_move / 3.0, 100), -100)
+        scenario['eth_strength'] = strength
+
+        # Определяем сценарий на основе собственного движения
+        if intrinsic_move > 2.0:
+            scenario.update({
+                'market_scenario': 'bullish_eth',
+                'eth_performance': 'excellent',
+                'explanation': f'🚀 ETH показывает СИЛУ! Растет на {intrinsic_move:.1f}% лучше чем обычно следует за BTC'
+            })
+        elif intrinsic_move > 0.5:
+            scenario.update({
+                'market_scenario': 'slightly_bullish_eth',
+                'eth_performance': 'good',
+                'explanation': f'📈 ETH немного опережает BTC (+{intrinsic_move:.1f}%)'
+            })
+        elif intrinsic_move > -0.5:
+            scenario.update({
+                'market_scenario': 'neutral',
+                'eth_performance': 'average',
+                'explanation': '⚖️ ETH движется в соответствии с BTC'
+            })
+        elif intrinsic_move > -2.0:
+            scenario.update({
+                'market_scenario': 'slightly_bearish_eth',
+                'eth_performance': 'weak',
+                'explanation': f'📉 ETH немного отстает от BTC ({intrinsic_move:.1f}%)'
+            })
+        else:
+            scenario.update({
+                'market_scenario': 'bearish_eth',
+                'eth_performance': 'poor',
+                'explanation': f'🔻 ETH показывает СЛАБОСТЬ! Отстает на {abs(intrinsic_move):.1f}% от BTC'
+            })
+
+        # Упрощенное распределение влияния (всегда в сумме 100%)
+        if analysis.get('spot_btc_influence') and analysis.get('spot_eth_own'):
+            btc_influence = min(abs(analysis['spot_btc_influence']), 100)  # ← math.min → min
+            eth_own = min(abs(analysis['spot_eth_own']), 100)  # ← math.min → min
+            total = btc_influence + eth_own
+
+            if total > 0:
+                scenario['simple_breakdown'] = {
+                    'btc_influence': round((btc_influence / total) * 100),  # ← Math.round → round
+                    'eth_own_power': round((eth_own / total) * 100)  # ← Math.round → round
+                }
+
+        return scenario
