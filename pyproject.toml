@@ -11,7 +11,8 @@ dependencies = [
     "django (>=5.2.7,<6.0.0)",
     "django-phonenumber-field (>=8.3.0,<9.0.0)",
     "drf-yasg (>=1.21.11,<2.0.0)",
-    "pybit (>=5.12.0,<6.0.0)"
+    "pybit (>=5.12.0,<6.0.0)",
+    "websocket-client (>=1.9.0,<2.0.0)"
 ]
 
 

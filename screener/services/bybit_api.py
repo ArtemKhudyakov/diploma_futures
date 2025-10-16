@@ -243,17 +243,22 @@ class BybitAPI:
             'btc_futures': self.get_current_price("BTCUSDT", "linear")
         }
 
-
     def get_historical_data(self, symbol: str, category: str = "spot",
                             timeframe: str = '1h', days: int = 1) -> List[Dict]:
         """
         Получение исторических данных за несколько дней
         timeframe: '1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w', '1M'
         """
-        # Конвертируем текстовый таймфрейм в числовой для API
-        interval = self.timeframes.get(timeframe, '60')  # по умолчанию 1 час
+        # Правильный маппинг таймфреймов для Bybit API
+        timeframe_mapping = {
+            '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
+            '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
+            '1d': 'D', '1w': 'W', '1M': 'M'
+        }
 
-        # Определяем сколько свечей нужно исходя из интервала и дней
+        interval = timeframe_mapping.get(timeframe, '60')  # по умолчанию 1 час
+
+        # Определяем сколько свечей нужно
         intervals_minutes = {
             '1m': 1, '3m': 3, '5m': 5, '15m': 15, '30m': 30,
             '1h': 60, '2h': 120, '4h': 240, '6h': 360, '12h': 720,
@@ -262,7 +267,7 @@ class BybitAPI:
 
         minutes_per_candle = intervals_minutes.get(timeframe, 60)
         total_candles_needed = (days * 24 * 60) // minutes_per_candle
-        total_candles_needed = min(total_candles_needed, 1000)  # Ограничим 1000 свечей
+        total_candles_needed = min(total_candles_needed, 1000)  # Ограничиваем 1000 свечей
 
         logger.info(f"Загрузка {total_candles_needed} свечей {symbol} {category} {timeframe} за {days} дней")
 

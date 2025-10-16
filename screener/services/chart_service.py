@@ -199,3 +199,21 @@ class ChartService:
             logger.info(f"График сохранен: charts/{filename}.html")
         except Exception as e:
             logger.error(f"Ошибка сохранения графика: {e}")
+
+    def generate_chart_html(self, fig: go.Figure) -> str:
+        """Генерация HTML строки графика для вставки на страницу"""
+        try:
+            # Генерируем HTML без включения plotly.js (будет подключаться отдельно)
+            chart_html = fig.to_html(
+                include_plotlyjs=False,  # Не включаем plotly.js в каждый график
+                full_html=False,  # Только div с графиком
+                config={
+                    'responsive': True,
+                    'displayModeBar': True,
+                    'displaylogo': False
+                }
+            )
+            return chart_html
+        except Exception as e:
+            logger.error(f"Ошибка генерации HTML графика: {e}")
+            return f'<div class="error">Ошибка создания графика: {e}</div>'
