@@ -1,142 +1,3 @@
-# from pybit.unified_trading import HTTP
-# import logging
-# from typing import Optional, Tuple, Dict, List
-# import time
-#
-# logger = logging.getLogger(__name__)
-#
-# import os
-#
-#
-# class BybitClient:
-#     """Клиент для Bybit с поддержкой спота и фьючерсов"""
-#
-#     def __init__(self, testnet: bool = False, api_key: str = os.getenv('BYBIT_API_KEY'),
-#                  api_secret: str = 'BYBIT_API_SECRET'):
-#         self.session = HTTP(
-#             testnet=testnet,
-#             api_key=api_key,
-#             api_secret=api_secret
-#         )
-#         self.testnet = testnet
-#         self.mode = "TESTNET" if testnet else "MAINNET"
-#         logger.info(f"BybitClient инициализирован в режиме: {self.mode}")
-#
-#     def get_price(self, symbol: str, category: str) -> Optional[float]:
-#         """Получение цены для указанной категории"""
-#         try:
-#             response = self.session.get_tickers(
-#                 category=category,
-#                 symbol=symbol
-#             )
-#
-#             if response['retCode'] == 0 and response['result']['list']:
-#                 price = float(response['result']['list'][0]['lastPrice'])
-#                 logger.debug(f"{self.mode} {symbol} {category}: ${price:.2f}")
-#                 return price
-#             else:
-#                 logger.error(f"Ошибка API {category} {symbol}: {response['retMsg']}")
-#
-#         except Exception as e:
-#             logger.error(f"Ошибка получения цены {symbol} {category}: {e}")
-#
-#         return None
-#
-#     def get_klines(self, symbol: str, category: str = "spot", interval: int = 60, limit: int = 1000) -> List[dict]:
-#         """Получение исторических данных"""
-#         try:
-#             response = self.session.get_kline(
-#                 category=category,
-#                 symbol=symbol,
-#                 interval=interval,
-#                 limit=limit
-#             )
-#
-#             if response['retCode'] == 0:
-#                 klines = []
-#                 for item in response['result']['list']:
-#                     klines.append({
-#                         'timestamp': int(item[0]),
-#                         'open': float(item[1]),
-#                         'high': float(item[2]),
-#                         'low': float(item[3]),
-#                         'close': float(item[4]),
-#                         'volume': float(item[5]),
-#                         'turnover': float(item[6]) if len(item) > 6 else 0
-#                     })
-#                 return klines
-#
-#         except Exception as e:
-#             logger.error(f"Ошибка получения K-line {symbol}: {e}")
-#
-#         return []
-#
-#     def get_spot_prices(self) -> Dict[str, Optional[float]]:
-#         """Получение спотовых цен"""
-#         return {
-#             'eth_spot': self.get_price("ETHUSDT", "spot"),
-#             'btc_spot': self.get_price("BTCUSDT", "spot")
-#         }
-#
-#     def get_futures_prices(self) -> Dict[str, Optional[float]]:
-#         """Получение фьючерсных цен (linear)"""
-#         return {
-#             'eth_futures': self.get_price("ETHUSDT", "linear"),
-#             'btc_futures': self.get_price("BTCUSDT", "linear")
-#         }
-#
-#     def get_all_prices(self) -> Dict[str, Optional[float]]:
-#         """Получение всех цен: спот и фьючерсы"""
-#         spot_prices = self.get_spot_prices()
-#         futures_prices = self.get_futures_prices()
-#         return {**spot_prices, **futures_prices}
-#
-#     # @staticmethod
-#     def calculate_basis(self, spot_price: float, futures_price: float) -> float:
-#         """Расчет базиса (разница между фьючерсом и спотом)"""
-#         if spot_price and futures_price:
-#             return ((futures_price - spot_price) / spot_price) * 100
-#         return 0.0
-#
-#
-#
-#
-#
-# if __name__ == "__main__":
-#     def test_prices():
-#         client = BybitClient(testnet=False)
-#
-#         print("💰 ПОЛУЧЕНИЕ СПОТОВЫХ И ФЬЮЧЕРСНЫХ ЦЕН")
-#         print("=" * 60)
-#
-#         while True:
-#             try:
-#                 prices = client.get_all_prices()
-#
-#                 if all(prices.values()):
-#                     # Расчет базиса
-#                     eth_basis = client.calculate_basis(prices['eth_spot'], prices['eth_futures'])
-#                     btc_basis = client.calculate_basis(prices['btc_spot'], prices['btc_futures'])
-#
-#                     print(f"[{time.strftime('%H:%M:%S')}] "
-#                           f"ETH: Spot=${prices['eth_spot']:7.2f} | "
-#                           f"Futures=${prices['eth_futures']:7.2f} | "
-#                           f"Basis={eth_basis:+.3f}%")
-#
-#                     print(f"{' ':28}"
-#                           f"BTC: Spot=${prices['btc_spot']:8.2f} | "
-#                           f"Futures=${prices['btc_futures']:8.2f} | "
-#                           f"Basis={btc_basis:+.3f}%")
-#                     print("-" * 60)
-#
-#                 time.sleep(10)  # Обновление каждые 10 секунд для теста
-#
-#             except KeyboardInterrupt:
-#                 print("\n⏹️ Тест остановлен")
-#                 break
-#     test_prices()
-
-
 from pybit.unified_trading import HTTP
 import logging
 from typing import Optional, Dict, List
@@ -154,7 +15,9 @@ class BybitAPI:
         self.session = HTTP(testnet=testnet, api_key=api_key, api_secret=api_secret)
         self.testnet = testnet
         self.mode = "TESTNET" if testnet else "MAINNET"
-        logger.info(f"BybitAPI инициализирован (testnet: {testnet})")
+
+        # self.last_request_time = 0
+        # self.min_request_interval = 0.3  # 300ms между запросами
 
         self.timeframes = {
             '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
@@ -164,6 +27,14 @@ class BybitAPI:
 
         logger.info(f"BybitAPI инициализирован (testnet: {testnet})")
 
+    # def _rate_limit(self):
+    #     """Ограничение частоты запросов"""
+    #     current_time = time.time()
+    #     time_since_last = current_time - self.last_request_time
+    #     if time_since_last < self.min_request_interval:
+    #         sleep_time = self.min_request_interval - time_since_last
+    #         time.sleep(sleep_time)
+    #     self.last_request_time = time.time()
 
     def get_current_price(self, symbol: str, category: str = "spot") -> Optional[float]:
         """
@@ -248,6 +119,17 @@ class BybitAPI:
         """
         Получение исторических данных за несколько дней
         """
+        # Ограничиваем частоту запросов
+        # self._rate_limit()
+
+        # Ограничиваем максимальное количество дней
+        max_days = self._get_max_days_for_timeframe(timeframe)
+        days = min(days, max_days)
+
+        logger.info(f"Загрузка данных {symbol} за {days} дней (таймфрейм: {timeframe})")
+
+        # time.sleep(0.5)
+
         timeframe_mapping = {
             '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
             '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
@@ -299,6 +181,18 @@ class BybitAPI:
 
         return prices
 
+    def _get_max_days_for_timeframe(self, timeframe):
+        """Максимальное количество дней для таймфрейма"""
+        limits = {
+            '1m': 1,  # 1 день максимум для 1m
+            '5m': 2,  # 2 дня максимум для 5m
+            '15m': 3,  # 3 дня максимум для 15m
+            '30m': 5,  # 5 дней максимум для 30m
+            '1h': 30,  # 30 дней максимум для 1h
+            '4h': 60,  # 60 дней максимум для 4h
+            '1d': 90,  # 90 дней максимум для 1d
+        }
+        return limits.get(timeframe, 7)
 
 if __name__ == "__main__":
     def test_prices():

@@ -305,7 +305,30 @@
     <!-- ГРАФИК -->
     <div class="chart-container">
         <div id="priceChart" class="loading">
-            Загрузка графика...
+
+        </div>
+    </div>
+
+    <!-- График собственного движения -->
+    <div class="chart-container">
+        <div class="chart-header">
+            <h3>📊 Историческое собственное движение ETH относительно BTC</h3>
+            <div class="chart-controls">
+                <label for="intrinsicPeriodSelect" class="sr-only">Период графика</label>
+                <select id="intrinsicPeriodSelect" onchange="loadIntrinsicChart()"
+                        title="Выберите период для графика собственного движения">
+                    <option value="3">3 дня</option>
+                    <option value="7" selected>7 дней</option>
+                    <option value="14">14 дней</option>
+                    <option value="30">30 дней</option>
+                </select>
+            </div>
+        </div>
+        <div id="intrinsicChart" class="loading">
+            Загрузка графика собственного движения...
+        </div>
+        <div id="intrinsicSummary" class="chart-summary">
+            Статистика: загрузка...
         </div>
     </div>
 
@@ -382,7 +405,7 @@
             const limit = document.getElementById('candleLimit').value;
 
             const response = await axios.get('/screener/api/chart-data/', {
-                params: { symbol, timeframe, limit },
+                params: {symbol, timeframe, limit},
                 timeout: 10000
             });
 
@@ -425,32 +448,32 @@
                 low: lows,
                 close: closes,
                 name: chartData.symbol,
-                increasing: { line: { color: '#00C853' }, fillcolor: '#00C853' },
-                decreasing: { line: { color: '#FF5252' }, fillcolor: '#FF5252' }
+                increasing: {line: {color: '#00C853'}, fillcolor: '#00C853'},
+                decreasing: {line: {color: '#FF5252'}, fillcolor: '#FF5252'}
             };
 
             const layout = {
                 title: {
                     text: `${chartData.symbol} - ${chartData.timeframe}`,
-                    font: { color: 'white', size: 16 }
+                    font: {color: 'white', size: 16}
                 },
                 xaxis: {
-                    title: { text: 'Время', font: { color: 'white' } },
+                    title: {text: 'Время', font: {color: 'white'}},
                     type: 'date',
-                    rangeslider: { visible: false },
+                    rangeslider: {visible: false},
                     gridcolor: '#444',
                     color: 'white'
                 },
                 yaxis: {
-                    title: { text: 'Цена (USDT)', font: { color: 'white' } },
+                    title: {text: 'Цена (USDT)', font: {color: 'white'}},
                     gridcolor: '#444',
                     color: 'white'
                 },
                 plot_bgcolor: '#1a1a2e',
                 paper_bgcolor: '#1a1a2e',
-                font: { color: 'white' },
+                font: {color: 'white'},
                 height: 500,
-                margin: { t: 50, r: 50, b: 50, l: 70 },
+                margin: {t: 50, r: 50, b: 50, l: 70},
                 showlegend: false
             };
 
@@ -481,23 +504,23 @@
     // Обновление цен и анализа
     async function updatePrices() {
         try {
+            // Пропускаем обновление если загружается большой график
+            if (window.isLoadingIntrinsicChart) {
+                debugLog('Skipping price update - intrinsic chart loading');
+                return;
+            }
+
             const trainingDays = document.getElementById('trainingDaysSelect').value;
 
             const response = await axios.get('/screener/api/data/', {
-                params: { training_days: trainingDays },
-                timeout: 5000
+                params: {training_days: trainingDays},
+                timeout: 8000  // Увеличиваем таймаут
             });
 
             if (response.data.success) {
                 const data = response.data.data;
-
-                // Обновляем цены
                 updatePriceCards(data.prices);
-
-                // Обновляем анализ
                 updateAnalysis(data);
-
-                // Обновляем информацию
                 updateAnalysisInfo(data.analysis_info);
 
                 const now = new Date();
@@ -508,10 +531,16 @@
 
             } else {
                 debugLog('Prices update failed:', response.data.error);
+                showStatus('Ошибка обновления цен: ' + response.data.error, 'error');
             }
         } catch (error) {
-            debugLog('Prices update error:', error.message);
-            statusElement.textContent = `[${new Date().toLocaleTimeString()}] Ошибка: ${error.message}`;
+            if (error.code === 'ECONNABORTED') {
+                debugLog('Price update timeout - retrying later');
+                // Не показываем ошибку для таймаута, просто пробуем позже
+            } else {
+                debugLog('Prices update error:', error.message);
+                showStatus(`Ошибка: ${error.message}`, 'error');
+            }
         }
     }
 
@@ -591,8 +620,9 @@
             }
         }
 
-        lastPrices = { ...prices };
+        lastPrices = {...prices};
     }
+
 
     // Обновление анализа
     function updateAnalysis(data) {
@@ -668,6 +698,204 @@
         summaryElement.textContent = summary;
     }
 
+    // Загрузка данных графика собственного движения
+    async function loadIntrinsicChart() {
+        try {
+            // Блокируем другие запросы на время загрузки
+            window.isLoadingIntrinsicChart = true;
+
+            console.log('🔄 START loadIntrinsicChart');
+            const days = document.getElementById('intrinsicPeriodSelect').value;
+            debugLog(`📈 Loading intrinsic movement chart for ${days} days`);
+
+            const intrinsicChartElement = document.getElementById('intrinsicChart');
+            if (!intrinsicChartElement) {
+                console.error('❌ intrinsicChart element not found!');
+                return;
+            }
+
+            intrinsicChartElement.innerHTML = '<div class="loading">Загрузка графика собственного движения...</div>';
+            showStatus('Загрузка исторического графика...', 'info');
+
+            console.log('📡 Making API request...');
+            const response = await axios.get('/screener/api/intrinsic-movement/', {
+                params: {
+                    days: parseInt(days),
+                    timeframe: '1h'
+                },
+                timeout: 30000  // Увеличиваем таймаут для больших запросов
+            });
+
+            console.log('✅ API response received:', response.data);
+
+            if (response.data.success) {
+                const chartData = response.data.data;
+                console.log('📊 Chart data:', chartData);
+                renderIntrinsicChart(chartData);
+                debugLog('✅ Intrinsic chart loaded successfully');
+                showStatus('Исторический график загружен!', 'success');
+            } else {
+                console.error('❌ API error:', response.data.error);
+                intrinsicChartElement.innerHTML = '<div class="loading">Ошибка загрузки: ' + response.data.error + '</div>';
+                showStatus('Ошибка загрузки графика: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            console.error('💥 Error loading intrinsic chart:', error);
+            console.error('Error details:', error.response?.data || error.message);
+            document.getElementById('intrinsicChart').innerHTML =
+                '<div class="loading">Ошибка загрузки графика: ' + error.message + '</div>';
+            showStatus('Ошибка загрузки графика: ' + error.message, 'error');
+        } finally {
+            // Разблокируем запросы
+            window.isLoadingIntrinsicChart = false;
+        }
+    }
+
+    // Отрисовка графика собственного движения
+    function renderIntrinsicChart(chartData) {
+        try {
+            const intrinsicData = chartData.intrinsic_data;
+            const summary = chartData.summary;
+
+            if (!intrinsicData || intrinsicData.length === 0) {
+                document.getElementById('intrinsicChart').innerHTML =
+                    '<div class="loading">Недостаточно данных для построения графика</div>';
+                return;
+            }
+
+            const times = intrinsicData.map(d => new Date(d.time * 1000));
+            const movements = intrinsicData.map(d => d.intrinsic_movement);
+
+            // Цвета для положительных/отрицательных значений
+            const colors = movements.map(value =>
+                value >= 0 ? '#00C853' : '#FF5252'
+            );
+
+            const trace = {
+                type: 'scatter',
+                mode: 'lines+markers',
+                x: times,
+                y: movements,
+                line: {
+                    color: '#2196F3',
+                    width: 2
+                },
+                marker: {
+                    size: 4,
+                    color: colors,
+                    line: {width: 0}
+                },
+                name: 'Собственное движение ETH',
+                hovertemplate:
+                    '<b>%{x}</b><br>' +
+                    'Собственное движение: <b>%{y:.3f}%</b><br>' +
+                    '<extra></extra>'
+            };
+
+            // Нулевая линия для ориентира
+            const zeroLine = {
+                type: 'scatter',
+                mode: 'lines',
+                x: [times[0], times[times.length - 1]],
+                y: [0, 0],
+                line: {
+                    color: '#666',
+                    width: 1,
+                    dash: 'dash'
+                },
+                name: 'Нулевая линия',
+                showlegend: false,
+                hoverinfo: 'skip'
+            };
+
+            const layout = {
+                title: {
+                    text: `Собственное движение ETH относительно BTC`,
+                    font: {color: 'white', size: 16}
+                },
+                xaxis: {
+                    title: {text: 'Время', font: {color: 'white'}},
+                    type: 'date',
+                    gridcolor: '#444',
+                    color: 'white'
+                },
+                yaxis: {
+                    title: {
+                        text: 'Собственное движение (%)',
+                        font: {color: 'white'}
+                    },
+                    gridcolor: '#444',
+                    color: 'white',
+                    tickformat: '.2f'
+                },
+                plot_bgcolor: '#1a1a2e',
+                paper_bgcolor: '#1a1a2e',
+                font: {color: 'white'},
+                height: 400,
+                margin: {t: 50, r: 50, b: 50, l: 70},
+                showlegend: true,
+                legend: {
+                    x: 0,
+                    y: 1.1,
+                    bgcolor: 'rgba(0,0,0,0)',
+                    font: {color: 'white'}
+                },
+                annotations: [
+                    {
+                        x: 0.02,
+                        y: 0.98,
+                        xref: 'paper',
+                        yref: 'paper',
+                        text: '🟢 Выше нуля = ETH сильнее BTC<br>🔴 Ниже нуля = ETH слабее BTC',
+                        showarrow: false,
+                        bgcolor: 'rgba(30,30,50,0.8)',
+                        bordercolor: '#444',
+                        borderwidth: 1,
+                        borderpad: 4,
+                        font: {color: 'white', size: 12}
+                    }
+                ]
+            };
+
+            Plotly.react('intrinsicChart', [trace, zeroLine], layout, {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+            });
+
+            // Обновляем статистику
+            updateIntrinsicSummary(summary, chartData.metadata.period_days);
+
+        } catch (error) {
+            console.error('Error rendering intrinsic chart:', error);
+            document.getElementById('intrinsicChart').innerHTML =
+                '<div class="loading">Ошибка отрисовки графика: ' + error.message + '</div>';
+        }
+    }
+
+    // Обновление статистики графика
+    function updateIntrinsicSummary(summary, days) {
+        const summaryElement = document.getElementById('intrinsicSummary');
+        if (!summaryElement || !summary) return;
+
+        const positivePct = summary.total_points > 0 ?
+            ((summary.positive_points / summary.total_points) * 100).toFixed(1) : 0;
+
+        const negativePct = summary.total_points > 0 ?
+            ((summary.negative_points / summary.total_points) * 100).toFixed(1) : 0;
+
+        summaryElement.innerHTML = `
+        <strong>📈 Статистика за ${days} дней:</strong><br>
+        Точек данных: ${summary.total_points} |
+        Среднее движение: <span class="${summary.avg_movement >= 0 ? 'up' : 'down'}">${summary.avg_movement.toFixed(3)}%</span> |
+        Макс: <span class="up">+${summary.max_movement.toFixed(2)}%</span> |
+        Мин: <span class="down">${summary.min_movement.toFixed(2)}%</span><br>
+        Положительных: <span class="up">${summary.positive_points} (${positivePct}%)</span> |
+        Отрицательных: <span class="down">${summary.negative_points} (${negativePct}%)</span> |
+        Сильных движений: <span class="up">${summary.strong_positive}</span>↑ / <span class="down">${summary.strong_negative}</span>↓
+    `;
+    }
+
     // Управление автообновлением
     function startAutoUpdate() {
         if (isAutoUpdateActive) return;
@@ -711,6 +939,7 @@
         showStatus('Инициализация приложения...', 'info');
         await loadChartData();
         await updatePrices();
+        await loadIntrinsicChart();  // Загружаем график собственного движения
         startAutoUpdate();
         showStatus('✅ Приложение готово!', 'success');
     });

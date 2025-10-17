@@ -46,39 +46,105 @@ class PriceAnalyzer:
         self._build_regression_models()
 
     def _build_regression_models(self):
-        """Построение моделей линейной регрессии"""
+        """Построение моделей линейной регрессии с улучшенной обработкой ошибок"""
         eth_spot = self.historical_data['eth_spot']
         btc_spot = self.historical_data['btc_spot']
         eth_futures = self.historical_data['eth_futures']
         btc_futures = self.historical_data['btc_futures']
 
+        logger.info(f"🔧 ПОСТРОЕНИЕ МОДЕЛЕЙ: ETH spot={len(eth_spot)}, BTC spot={len(btc_spot)}")
+
         # Модель для спота
-        if len(eth_spot) >= 60 and len(btc_spot) >= 60:
-            eth_array = np.array(eth_spot)
-            btc_array = np.array(btc_spot)
+        if len(eth_spot) >= 2 and len(btc_spot) >= 2:  # Минимум 2 точки для регрессии
+            try:
+                eth_array = np.array(eth_spot)
+                btc_array = np.array(btc_spot)
 
-            X = np.column_stack([np.ones(len(btc_array)), btc_array])
-            coefficients = np.linalg.lstsq(X, eth_array, rcond=None)[0]
+                # Проверяем, что все значения конечные
+                if not np.all(np.isfinite(eth_array)) or not np.all(np.isfinite(btc_array)):
+                    logger.error("❌ В данных есть бесконечные или NaN значения")
+                    return
 
-            self.spot_intercept = coefficients[0]
-            self.spot_coef = coefficients[1]
+                # Проверяем, что массивы не пустые
+                if len(eth_array) == 0 or len(btc_array) == 0:
+                    logger.error("❌ Пустые массивы данных")
+                    return
 
-            logger.info(
-                f"Спот модель ({len(eth_spot)} точек): ETH = {self.spot_intercept:.2f} + {self.spot_coef:.6f}×BTC")
+                # Создаем матрицу признаков [1, btc_price] для каждой точки
+                X = np.column_stack([np.ones(len(btc_array)), btc_array])
 
-        # Модель для фьючерсов
-        if len(eth_futures) >= 60 and len(btc_futures) >= 60:
-            eth_array = np.array(eth_futures)
-            btc_array = np.array(btc_futures)
+                # Используем метод наименьших квадратов с обработкой ошибок
+                coefficients, residuals, rank, s = np.linalg.lstsq(X, eth_array, rcond=None)
 
-            X = np.column_stack([np.ones(len(btc_array)), btc_array])
-            coefficients = np.linalg.lstsq(X, eth_array, rcond=None)[0]
+                if len(coefficients) >= 2:
+                    self.spot_intercept = coefficients[0]
+                    self.spot_coef = coefficients[1]
+                    logger.info(
+                        f"✅ Спот модель ({len(eth_spot)} точек): ETH = {self.spot_intercept:.2f} + {self.spot_coef:.6f}×BTC"
+                    )
+                else:
+                    logger.error("❌ Не удалось вычислить коэффициенты регрессии")
 
-            self.futures_intercept = coefficients[0]
-            self.futures_coef = coefficients[1]
+            except Exception as e:
+                logger.error(f"❌ Ошибка построения спот модели: {e}")
+                # Пробуем альтернативный метод
+                self._build_simple_regression(eth_spot, btc_spot, 'spot')
 
-            logger.info(
-                f"Фьючерс модель ({len(eth_futures)} точек): ETH = {self.futures_intercept:.2f} + {self.futures_coef:.6f}×BTC")
+        # Модель для фьючерсов (аналогично)
+        if len(eth_futures) >= 2 and len(btc_futures) >= 2:
+            try:
+                eth_array = np.array(eth_futures)
+                btc_array = np.array(btc_futures)
+
+                if not np.all(np.isfinite(eth_array)) or not np.all(np.isfinite(btc_array)):
+                    logger.error("❌ В фьючерсных данных есть бесконечные или NaN значения")
+                    return
+
+                X = np.column_stack([np.ones(len(btc_array)), btc_array])
+                coefficients, residuals, rank, s = np.linalg.lstsq(X, eth_array, rcond=None)
+
+                if len(coefficients) >= 2:
+                    self.futures_intercept = coefficients[0]
+                    self.futures_coef = coefficients[1]
+                    logger.info(
+                        f"✅ Фьючерс модель ({len(eth_futures)} точек): ETH = {self.futures_intercept:.2f} + {self.futures_coef:.6f}×BTC"
+                    )
+
+            except Exception as e:
+                logger.error(f"❌ Ошибка построения фьючерс модели: {e}")
+                self._build_simple_regression(eth_futures, btc_futures, 'futures')
+
+    def _build_simple_regression(self, eth_prices, btc_prices, model_type):
+        """Упрощенный метод построения регрессии через ковариацию"""
+        try:
+            if len(eth_prices) < 2:
+                return
+
+            eth_array = np.array(eth_prices)
+            btc_array = np.array(btc_prices)
+
+            # Простая линейная регрессия: beta = cov(X,Y) / var(X)
+            covariance = np.cov(btc_array, eth_array)[0, 1]
+            variance = np.var(btc_array)
+
+            if variance == 0:
+                logger.error(f"❌ Нулевая дисперсия в данных для {model_type}")
+                return
+
+            beta = covariance / variance
+            alpha = np.mean(eth_array) - beta * np.mean(btc_array)
+
+            if model_type == 'spot':
+                self.spot_intercept = alpha
+                self.spot_coef = beta
+            else:
+                self.futures_intercept = alpha
+                self.futures_coef = beta
+
+            logger.info(f"✅ Упрощенная {model_type} модель: ETH = {alpha:.2f} + {beta:.6f}×BTC")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка в упрощенной регрессии для {model_type}: {e}")
 
     def get_analysis_info(self) -> Dict:
         """Информация о текущих настройках анализа"""

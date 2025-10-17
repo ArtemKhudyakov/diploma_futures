@@ -6,6 +6,8 @@ from screener.services.bybit_api import BybitAPI
 from screener.services.price_analyzer import PriceAnalyzer
 import math
 from datetime import datetime
+from screener.services.intrinsic_chart_service import intrinsic_chart_service
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -223,3 +225,137 @@ class ChartDataAPIView(View):
                 'volume': float(kline.get('volume', 0))
             })
         return formatted
+
+
+class IntrinsicMovementAPIView(View):
+    def get(self, request):
+        try:
+            days = int(request.GET.get('days', 7))
+            timeframe = request.GET.get('timeframe', '1h')
+
+            logger.info(f"🔍 DEBUG: Начало загрузки графика, days={days}, timeframe={timeframe}")
+
+            # ВРЕМЕННО ОТКЛЮЧАЕМ КЭШ ДЛЯ ДЕБАГА
+            # cache_key = f"intrinsic_chart_{days}_{timeframe}"
+            # cached_data = cache.get(cache_key)
+            # if cached_data:
+            #     return JsonResponse({'success': True, 'data': cached_data, 'cached': True})
+
+            # Оптимизация таймфрейма
+            optimized_timeframe = self._get_optimized_timeframe(days)
+            if optimized_timeframe != timeframe:
+                timeframe = optimized_timeframe
+
+            logger.info(f"🔍 DEBUG: Загрузка данных с таймфреймом {timeframe}")
+
+            # Загрузка данных
+            eth_klines = api.get_historical_data("ETHUSDT", "spot", timeframe, days)
+            btc_klines = api.get_historical_data("BTCUSDT", "spot", timeframe, days)
+
+            if eth_klines and btc_klines:
+                # Проверяем первые несколько точек
+                for i in range(min(3, len(eth_klines))):
+                    eth_price = eth_klines[i].get('close')
+                    btc_price = btc_klines[i].get('close')
+                    if not eth_price or not btc_price or eth_price <= 0 or btc_price <= 0:
+                        logger.error(f"❌ Некорректные цены в точке {i}: ETH={eth_price}, BTC={btc_price}")
+                        return JsonResponse({
+                            'success': False,
+                            'error': 'Обнаружены некорректные ценовые данные'
+                        })
+
+            logger.info(f"🔍 DEBUG: Данные загружены - ETH: {len(eth_klines)}, BTC: {len(btc_klines)}")
+
+            if not eth_klines or not btc_klines:
+                logger.error(f"🔍 DEBUG: Нет данных! ETH: {len(eth_klines)}, BTC: {len(btc_klines)}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Не удалось загрузить исторические данные. ETH: {len(eth_klines)}, BTC: {len(btc_klines)}'
+                })
+
+            # Проверяем структуру данных
+            if eth_klines:
+                first_eth = eth_klines[0]
+                logger.info(f"🔍 DEBUG: Первая свеча ETH - {first_eth}")
+            if btc_klines:
+                first_btc = btc_klines[0]
+                logger.info(f"🔍 DEBUG: Первая свеча BTC - {first_btc}")
+
+            # Ограничиваем количество точек
+            max_points = 200
+            if len(eth_klines) > max_points:
+                step = max(1, len(eth_klines) // max_points)
+                eth_klines = eth_klines[::step]
+                btc_klines = btc_klines[::step]
+                logger.info(f"🔍 DEBUG: Данные сокращены до {len(eth_klines)} точек")
+
+            # Проверяем, что есть достаточно данных для анализа
+            if len(eth_klines) < 2:
+                logger.error(f"🔍 DEBUG: Недостаточно данных для анализа! Всего точек: {len(eth_klines)}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Недостаточно данных для анализа. Нужно минимум 2 точки, получено: {len(eth_klines)}'
+                })
+
+            logger.info("🔍 DEBUG: Начинаем построение графика...")
+            if eth_klines and btc_klines:
+                sample_eth = eth_klines[0]
+                sample_btc = btc_klines[0]
+                logger.info(f"🔍 ПРОВЕРКА ДАННЫХ:")
+                logger.info(f"   ETH: timestamp={sample_eth.get('timestamp')}, close={sample_eth.get('close')}")
+                logger.info(f"   BTC: timestamp={sample_btc.get('timestamp')}, close={sample_btc.get('close')}")
+
+                # Проверяем, что есть поле 'close'
+                if 'close' not in sample_eth or 'close' not in sample_btc:
+                    logger.error("❌ В данных отсутствует поле 'close'!")
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Некорректная структура данных: отсутствует поле close'
+                    })
+            intrinsic_data = intrinsic_chart_service.build_intrinsic_chart_data(
+                eth_klines, btc_klines
+            )
+
+            logger.info(f"🔍 DEBUG: График построен. Получено точек: {len(intrinsic_data)}")
+
+            if not intrinsic_data:
+                logger.error("🔍 DEBUG: IntrinsicChartService вернул пустой результат!")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Не удалось построить график собственного движения'
+                })
+
+            summary = intrinsic_chart_service.get_chart_summary(intrinsic_data)
+
+            result_data = {
+                'intrinsic_data': intrinsic_data,
+                'summary': summary,
+                'metadata': {
+                    'period_days': days,
+                    'timeframe': timeframe,
+                    'data_points': len(intrinsic_data)
+                }
+            }
+
+            return JsonResponse({
+                'success': True,
+                'data': result_data,
+                'cached': False
+            })
+
+        except Exception as e:
+            logger.error(f"🔍 DEBUG: IntrinsicMovementAPIView error: {e}", exc_info=True)
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    def _get_optimized_timeframe(self, days):
+        """Оптимизация таймфрейма в зависимости от количества дней"""
+        if days <= 1:
+            return '15m'
+        elif days <= 3:
+            return '1h'
+        elif days <= 7:
+            return '4h'
+        elif days <= 30:
+            return '1d'
+        else:
+            return '1d'

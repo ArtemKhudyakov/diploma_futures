@@ -8,4 +8,5 @@ urlpatterns = [
     path('api/data/', views.DataAPIView.as_view(), name='api_data'),
     path('api/history/', views.HistoryAPIView.as_view(), name='api_history'),
     path('api/chart-data/', views.ChartDataAPIView.as_view(), name='api_chart_data'),
+    path('api/intrinsic-movement/', views.IntrinsicMovementAPIView.as_view(), name='api_intrinsic_movement'),
 ]
