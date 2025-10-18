@@ -1,6 +1,9 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
-        <a class="navbar-brand" href="/">🚀 Future Futures</a>
+        <a class="navbar-brand fw-bold" href="/">
+            🚀 To Ze Moon
+        </a>
+        <small class="text-warning ms-2">ТуЗеМун</small>
 
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -11,17 +14,17 @@
                 <li class="nav-item">
                     <a class="nav-link" href="/">Главная</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link text-success" href="{% url 'screener:realtime' %}">
+                        📊 Скринер
+                    </a>
+                </li>
                 {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Мои инвестиции</a>
+                        <a class="nav-link" href="#">📈 История</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Аналитика</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            📊 Портфель
-                        </a>
+                        <a class="nav-link" href="#">⚙️ Настройки</a>
                     </li>
                 {% endif %}
             </ul>
@@ -35,7 +38,7 @@
                                 <span class="badge bg-warning">Staff</span>
                             {% endif %}
                         </a>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu dropdown-menu-dark">
                             <li>
                                 <a class="dropdown-item" href="{% url 'users:profile_edit' %}">
                                     ⚙️ Мой профиль
