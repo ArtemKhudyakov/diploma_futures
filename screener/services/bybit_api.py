@@ -119,8 +119,6 @@ class BybitAPI:
         """
         Получение исторических данных за несколько дней
         """
-        # Ограничиваем частоту запросов
-        # self._rate_limit()
 
         # Ограничиваем максимальное количество дней
         max_days = self._get_max_days_for_timeframe(timeframe)

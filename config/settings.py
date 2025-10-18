@@ -191,16 +191,7 @@ CELERY_TIMEZONE = "Europe/Moscow"
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
-CELERY_BEAT_SCHEDULE = {
-    "check-habit-reminders-every-minute": {
-        "task": "habits.tasks.check_and_send_habit_reminders",
-        "schedule": 60.0,  # Каждую минуту (60 секунд)
-    },
-    "debug-task-every-5-minutes": {
-        "task": "habits.tasks.debug_task",
-        "schedule": 300.0,  # Каждые 5 минут для тестирования
-    },
-}
+CELERY_BEAT_SCHEDULE = {}
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
