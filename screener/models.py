@@ -1,5 +1,6 @@
 from django.db import models
-
+from django.conf import settings
+from django.contrib.auth import get_user_model
 
 class PriceHistory(models.Model):
     CATEGORY_CHOICES = [
@@ -62,17 +63,68 @@ class AnalysisResult(models.Model):
 
 class PriceAlert(models.Model):
     ALERT_TYPES = [
-        ('price_change', 'Изменение цены'),
-        ('intrinsic_move', 'Собственное движение'),
-        ('basis_change', 'Изменение базиса'),
+        ('price', 'Цена'),
+        ('intrinsic', 'Собственное движение'),
+        ('basis', 'Базис'),
+        ('volume', 'Объем'),
     ]
 
-    timestamp = models.DateTimeField(auto_now_add=True)
-    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES)
-    symbol = models.CharField(max_length=20)
-    message = models.TextField()
-    value = models.FloatField()  # Значение которое вызвало алерт
-    is_active = models.BooleanField(default=True)
+    CONDITIONS = [
+        ('above', 'Выше'),
+        ('below', 'Ниже'),
+        ('cross_above', 'Пересекает сверху'),
+        ('cross_below', 'Пересекает снизу'),
+    ]
+
+    STATUS = [
+        ('active', 'Активен'),
+        ('triggered', 'Сработал'),
+        ('cancelled', 'Отменен'),
+    ]
+
+    # Используем settings.AUTH_USER_MODEL вместо прямого импорта User
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        verbose_name="Пользователь"
+    )
+    name = models.CharField(max_length=100, verbose_name="Название алерта")
+    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES, verbose_name="Тип алерта")
+    symbol = models.CharField(max_length=20, verbose_name="Символ")
+    condition = models.CharField(max_length=20, choices=CONDITIONS, verbose_name="Условие")
+    value = models.FloatField(verbose_name="Значение")
+
+    # Дополнительные параметры для разных типов алертов
+    timeframe = models.CharField(max_length=10, default='1h', verbose_name="Таймфрейм")
+    data_type = models.CharField(max_length=10, default='spot', verbose_name="Тип данных")
+
+    status = models.CharField(max_length=20, choices=STATUS, default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+    triggered_at = models.DateTimeField(null=True, blank=True)
+    last_checked = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ['-timestamp']
+        ordering = ['-created_at']
+        verbose_name = 'Алерт'
+        verbose_name_plural = 'Алерты'
+
+    def __str__(self):
+        return f"{self.name} ({self.symbol} {self.alert_type})"
+
+    def get_condition_text(self):
+        condition_text = {
+            'above': '>',
+            'below': '<',
+            'cross_above': 'пересекает сверху',
+            'cross_below': 'пересекает снизу'
+        }
+        return condition_text.get(self.condition, self.condition)
+
+    def get_alert_type_display_name(self):
+        names = {
+            'price': 'Цена',
+            'intrinsic': 'Собственное движение',
+            'basis': 'Базис',
+            'volume': 'Объем'
+        }
+        return names.get(self.alert_type, self.alert_type)

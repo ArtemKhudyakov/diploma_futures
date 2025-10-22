@@ -1,13 +1,21 @@
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.views import View
 import logging
 from screener.services.bybit_api import BybitAPI
 from screener.services.price_analyzer import PriceAnalyzer
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from screener.services.intrinsic_chart_service import intrinsic_chart_service
 from django.core.cache import cache
+
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+
+from .models import PriceAlert
+from .forms import PriceAlertForm
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -434,3 +442,152 @@ class IntrinsicMovementAPIView(View):
             return '1d'
         else:
             return '1d'
+
+
+@method_decorator(login_required, name='dispatch')
+class AlertAPIView(View):
+    def get(self, request):
+        """Получение списка алертов пользователя"""
+        try:
+            alerts = PriceAlert.objects.filter(user=request.user).order_by('-created_at')
+            alerts_data = []
+
+            for alert in alerts:
+                alerts_data.append({
+                    'id': alert.id,
+                    'name': alert.name,
+                    'alert_type': alert.get_alert_type_display_name(),
+                    'symbol': alert.symbol,
+                    'condition': alert.get_condition_text(),
+                    'value': alert.value,
+                    'status': alert.status,
+                    'created_at': alert.created_at.strftime('%d.%m.%Y %H:%M'),
+                    'triggered_at': alert.triggered_at.strftime('%d.%m.%Y %H:%M') if alert.triggered_at else None,
+                    'timeframe': alert.timeframe,
+                    'data_type': alert.data_type,
+                })
+
+            return JsonResponse({
+                'success': True,
+                'alerts': alerts_data
+            })
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    def post(self, request):
+        """Создание нового алерта"""
+        try:
+            data = json.loads(request.body)
+            form = PriceAlertForm(data)
+
+            if form.is_valid():
+                alert = form.save(commit=False)
+                alert.user = request.user
+                alert.save()
+
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Алерт успешно создан',
+                    'alert_id': alert.id
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Ошибка валидации',
+                    'errors': form.errors
+                })
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    def delete(self, request, alert_id):
+        """Удаление алерта"""
+        try:
+            alert = get_object_or_404(PriceAlert, id=alert_id, user=request.user)
+            alert.delete()
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Алерт удален'
+            })
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CheckAlertsView(View):
+    def post(self, request):
+        """Проверка срабатывания алертов (вызывается извне)"""
+        try:
+            data = json.loads(request.body)
+            current_prices = data.get('prices', {})
+            technical_data = data.get('technical', {})
+
+            triggered_alerts = []
+
+            # Получаем активные алерты
+            active_alerts = PriceAlert.objects.filter(status='active')
+
+            for alert in active_alerts:
+                if self.check_alert_condition(alert, current_prices, technical_data):
+                    alert.status = 'triggered'
+                    alert.triggered_at = timezone.now()
+                    alert.save()
+
+                    triggered_alerts.append({
+                        'id': alert.id,
+                        'name': alert.name,
+                        'symbol': alert.symbol,
+                        'condition': alert.get_condition_text(),
+                        'value': alert.value,
+                        'current_value': self.get_current_value(alert, current_prices, technical_data)
+                    })
+
+            return JsonResponse({
+                'success': True,
+                'triggered_alerts': triggered_alerts,
+                'checked_count': len(active_alerts)
+            })
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    def check_alert_condition(self, alert, prices, technical):
+        """Проверка условия алерта"""
+        current_value = self.get_current_value(alert, prices, technical)
+
+        if current_value is None:
+            return False
+
+        if alert.condition == 'above':
+            return current_value > alert.value
+        elif alert.condition == 'below':
+            return current_value < alert.value
+        # Для crossed условий нужна история предыдущих значений
+        # Пока реализуем базовые условия
+
+        return False
+
+    def get_current_value(self, alert, prices, technical):
+        """Получение текущего значения для типа алерта"""
+        if alert.alert_type == 'price':
+            symbol_map = {
+                'ETHUSDT': 'eth_spot' if alert.data_type == 'spot' else 'eth_futures',
+                'BTCUSDT': 'btc_spot' if alert.data_type == 'spot' else 'btc_futures',
+                'ETHUSD': 'eth_futures',
+                'BTCUSD': 'btc_futures'
+            }
+            price_key = symbol_map.get(alert.symbol)
+            return prices.get(price_key) if price_key else None
+
+        elif alert.alert_type == 'intrinsic':
+            if 'ETH' in alert.symbol:
+                return technical.get('spot_intrinsic') if alert.data_type == 'spot' else technical.get(
+                    'futures_intrinsic')
+
+        elif alert.alert_type == 'basis':
+            return technical.get('basis_eth') if 'ETH' in alert.symbol else technical.get('basis_btc')
+
+        return None
