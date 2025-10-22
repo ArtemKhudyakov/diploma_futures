@@ -62,18 +62,9 @@ class AnalysisResult(models.Model):
 
 
 class PriceAlert(models.Model):
-    ALERT_TYPES = [
-        ('price', 'Цена'),
-        ('intrinsic', 'Собственное движение'),
-        ('basis', 'Базис'),
-        ('volume', 'Объем'),
-    ]
-
     CONDITIONS = [
         ('above', 'Выше'),
         ('below', 'Ниже'),
-        ('cross_above', 'Пересекает сверху'),
-        ('cross_below', 'Пересекает снизу'),
     ]
 
     STATUS = [
@@ -82,49 +73,25 @@ class PriceAlert(models.Model):
         ('cancelled', 'Отменен'),
     ]
 
-    # Используем settings.AUTH_USER_MODEL вместо прямого импорта User
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        verbose_name="Пользователь"
-    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     name = models.CharField(max_length=100, verbose_name="Название алерта")
-    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES, verbose_name="Тип алерта")
     symbol = models.CharField(max_length=20, verbose_name="Символ")
     condition = models.CharField(max_length=20, choices=CONDITIONS, verbose_name="Условие")
-    value = models.FloatField(verbose_name="Значение")
-
-    # Дополнительные параметры для разных типов алертов
-    timeframe = models.CharField(max_length=10, default='1h', verbose_name="Таймфрейм")
-    data_type = models.CharField(max_length=10, default='spot', verbose_name="Тип данных")
+    target_price = models.FloatField(verbose_name="Целевая цена")
 
     status = models.CharField(max_length=20, choices=STATUS, default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     triggered_at = models.DateTimeField(null=True, blank=True)
-    last_checked = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']
-        verbose_name = 'Алерт'
-        verbose_name_plural = 'Алерты'
 
     def __str__(self):
-        return f"{self.name} ({self.symbol} {self.alert_type})"
+        return f"{self.name} ({self.symbol} {self.condition} ${self.target_price})"
 
-    def get_condition_text(self):
-        condition_text = {
-            'above': '>',
-            'below': '<',
-            'cross_above': 'пересекает сверху',
-            'cross_below': 'пересекает снизу'
-        }
-        return condition_text.get(self.condition, self.condition)
-
-    def get_alert_type_display_name(self):
-        names = {
-            'price': 'Цена',
-            'intrinsic': 'Собственное движение',
-            'basis': 'Базис',
-            'volume': 'Объем'
-        }
-        return names.get(self.alert_type, self.alert_type)
+    def check_condition(self, current_price):
+        """Проверка условия алерта"""
+        if self.condition == 'above':
+            return current_price >= self.target_price
+        else:  # below
+            return current_price <= self.target_price

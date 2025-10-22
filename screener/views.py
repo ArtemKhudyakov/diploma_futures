@@ -445,7 +445,62 @@ class IntrinsicMovementAPIView(View):
 
 
 @method_decorator(login_required, name='dispatch')
-class AlertAPIView(View):
+class AlertCreateAPIView(View):
+    def post(self, request):
+        """Создание нового алерта"""
+        try:
+            data = json.loads(request.body)
+
+            # Простая валидация
+            name = data.get('name', '').strip()
+            symbol = data.get('symbol')
+            condition = data.get('condition')
+            target_price = data.get('target_price')
+
+            if not name or not symbol or not condition or not target_price:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Все поля обязательны для заполнения'
+                })
+
+            try:
+                target_price = float(target_price)
+            except (TypeError, ValueError):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Некорректная цена'
+                })
+
+            # Создаем алерт
+            alert = PriceAlert(
+                user=request.user,
+                name=name,
+                symbol=symbol,
+                condition=condition,
+                target_price=target_price
+            )
+            alert.save()
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Алерт успешно создан',
+                'alert': {
+                    'id': alert.id,
+                    'name': alert.name,
+                    'symbol': alert.symbol,
+                    'condition': alert.condition,
+                    'target_price': alert.target_price,
+                    'status': alert.status,
+                    'created_at': alert.created_at.strftime('%d.%m.%Y %H:%M'),
+                }
+            })
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+
+@method_decorator(login_required, name='dispatch')
+class AlertListAPIView(View):
     def get(self, request):
         """Получение списка алертов пользователя"""
         try:
@@ -456,15 +511,12 @@ class AlertAPIView(View):
                 alerts_data.append({
                     'id': alert.id,
                     'name': alert.name,
-                    'alert_type': alert.get_alert_type_display_name(),
                     'symbol': alert.symbol,
-                    'condition': alert.get_condition_text(),
-                    'value': alert.value,
+                    'condition': alert.condition,
+                    'target_price': alert.target_price,
                     'status': alert.status,
                     'created_at': alert.created_at.strftime('%d.%m.%Y %H:%M'),
                     'triggered_at': alert.triggered_at.strftime('%d.%m.%Y %H:%M') if alert.triggered_at else None,
-                    'timeframe': alert.timeframe,
-                    'data_type': alert.data_type,
                 })
 
             return JsonResponse({
@@ -475,32 +527,9 @@ class AlertAPIView(View):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
-    def post(self, request):
-        """Создание нового алерта"""
-        try:
-            data = json.loads(request.body)
-            form = PriceAlertForm(data)
 
-            if form.is_valid():
-                alert = form.save(commit=False)
-                alert.user = request.user
-                alert.save()
-
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Алерт успешно создан',
-                    'alert_id': alert.id
-                })
-            else:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Ошибка валидации',
-                    'errors': form.errors
-                })
-
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-
+@method_decorator(login_required, name='dispatch')
+class AlertDeleteAPIView(View):
     def delete(self, request, alert_id):
         """Удаление алерта"""
         try:
@@ -516,22 +545,28 @@ class AlertAPIView(View):
             return JsonResponse({'success': False, 'error': str(e)})
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class CheckAlertsView(View):
     def post(self, request):
-        """Проверка срабатывания алертов (вызывается извне)"""
+        """Проверка срабатывания алертов (вызывается при обновлении цен)"""
         try:
             data = json.loads(request.body)
             current_prices = data.get('prices', {})
-            technical_data = data.get('technical', {})
 
             triggered_alerts = []
 
-            # Получаем активные алерты
+            # Получаем активные алерты всех пользователей
             active_alerts = PriceAlert.objects.filter(status='active')
 
             for alert in active_alerts:
-                if self.check_alert_condition(alert, current_prices, technical_data):
+                # Получаем текущую цену для символа
+                current_price = None
+                if alert.symbol == 'ETHUSDT':
+                    current_price = current_prices.get('eth_spot')
+                elif alert.symbol == 'BTCUSDT':
+                    current_price = current_prices.get('btc_spot')
+
+                if current_price and alert.check_condition(current_price):
+                    # Алерт сработал
                     alert.status = 'triggered'
                     alert.triggered_at = timezone.now()
                     alert.save()
@@ -540,9 +575,10 @@ class CheckAlertsView(View):
                         'id': alert.id,
                         'name': alert.name,
                         'symbol': alert.symbol,
-                        'condition': alert.get_condition_text(),
-                        'value': alert.value,
-                        'current_value': self.get_current_value(alert, current_prices, technical_data)
+                        'condition': alert.condition,
+                        'target_price': alert.target_price,
+                        'current_price': current_price,
+                        'user_id': alert.user_id
                     })
 
             return JsonResponse({
@@ -553,41 +589,3 @@ class CheckAlertsView(View):
 
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
-
-    def check_alert_condition(self, alert, prices, technical):
-        """Проверка условия алерта"""
-        current_value = self.get_current_value(alert, prices, technical)
-
-        if current_value is None:
-            return False
-
-        if alert.condition == 'above':
-            return current_value > alert.value
-        elif alert.condition == 'below':
-            return current_value < alert.value
-        # Для crossed условий нужна история предыдущих значений
-        # Пока реализуем базовые условия
-
-        return False
-
-    def get_current_value(self, alert, prices, technical):
-        """Получение текущего значения для типа алерта"""
-        if alert.alert_type == 'price':
-            symbol_map = {
-                'ETHUSDT': 'eth_spot' if alert.data_type == 'spot' else 'eth_futures',
-                'BTCUSDT': 'btc_spot' if alert.data_type == 'spot' else 'btc_futures',
-                'ETHUSD': 'eth_futures',
-                'BTCUSD': 'btc_futures'
-            }
-            price_key = symbol_map.get(alert.symbol)
-            return prices.get(price_key) if price_key else None
-
-        elif alert.alert_type == 'intrinsic':
-            if 'ETH' in alert.symbol:
-                return technical.get('spot_intrinsic') if alert.data_type == 'spot' else technical.get(
-                    'futures_intrinsic')
-
-        elif alert.alert_type == 'basis':
-            return technical.get('basis_eth') if 'ETH' in alert.symbol else technical.get('basis_btc')
-
-        return None
