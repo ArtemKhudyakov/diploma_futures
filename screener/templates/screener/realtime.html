@@ -374,120 +374,121 @@
         <p>Автоматическое обновление цен каждые 2 секунды и графика каждые 10 секунд</p>
     </div>
 
-    <!-- СЕКЦИЯ АЛЕРТОВ -->
-    <div class="alerts-section">
-        <div class="alerts-header">
-            <h3>🔔 Управление алертами</h3>
-            <button class="btn-info" id="toggleAlertFormBtn">
-                📝 Создать новый алерт
-            </button>
-        </div>
+<!-- СЕКЦИЯ АЛЕРТОВ -->
+<div class="alerts-section">
+    <div class="alerts-header">
+        <h3>🔔 Управление алертами</h3>
+        <button class="btn-info" id="toggleAlertFormBtn">
+            📝 Создать новый алерт
+        </button>
+    </div>
 
-        <!-- ПРОСТАЯ ФОРМА СОЗДАНИЯ АЛЕРТА -->
-        <div class="alert-form" id="alertForm" style="display: none;">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Название алерта:</label>
-                    <input type="text" id="alertName" placeholder="ETH достиг 4000" maxlength="100">
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Символ:</label>
-                    <select id="alertSymbol">
-                        <option value="ETHUSDT">ETH/USDT</option>
-                        <option value="BTCUSDT">BTC/USDT</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Условие:</label>
-                    <select id="alertCondition">
-                        <option value="above">Цена выше</option>
-                        <option value="below">Цена ниже</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Целевая цена ($):</label>
-                    <input type="number" id="alertTargetPrice" step="0.01" placeholder="0.00">
-                </div>
-                <div class="form-group" style="align-items: flex-end;">
-                    <button class="btn-success" id="createAlertBtn">✅ Создать</button>
-                </div>
+    <!-- ФОРМА СОЗДАНИЯ АЛЕРТА -->
+    <div class="alert-form" id="alertForm" style="display: none;">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Название алерта:</label>
+                <input type="text" id="alertName" placeholder="ETH достиг 4000" maxlength="100">
             </div>
         </div>
 
-        <!-- СПИСОК АЛЕРТОВ -->
-        <div class="alerts-list" id="alertsList">
-            <div class="loading">Загрузка алертов...</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Символ:</label>
+                <select id="alertSymbol">
+                    <option value="ETHUSDT">ETH/USDT</option>
+                    <option value="BTCUSDT">BTC/USDT</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Условие:</label>
+                <select id="alertCondition">
+                    <option value="above">Цена выше</option>
+                    <option value="below">Цена ниже</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Целевая цена ($):</label>
+                <input type="number" id="alertTargetPrice" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group" style="align-items: flex-end;">
+                <button class="btn-success" id="createAlertBtn">✅ Создать алерт</button>
+            </div>
         </div>
     </div>
 
-    <div class="controls">
-        <div class="control-group">
-            <label>Тип анализа:</label>
-            <select id="analysisTypeSelect">
-                <option value="spot" selected>Spot анализ</option>
-                <option value="futures">Futures анализ</option>
-                <option value="both">Spot + Futures</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label>Контракт:</label>
-            <select id="futuresTypeSelect">
-                <option value="linear" selected>Linear (USDT)</option>
-                <option value="inverse">Inverse (COIN-M)</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label>Символ:</label>
-            <select id="symbolSelect">
-                <option value="ETHUSDT">ETH/USDT (Spot)</option>
-                <option value="BTCUSDT">BTC/USDT (Spot)</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label>Таймфрейм:</label>
-            <select id="timeframeSelect">
-                <option value="1m">1 Minute</option>
-                <option value="5m">5 Minutes</option>
-                <option value="15m">15 Minutes</option>
-                <option value="30m">30 Minutes</option>
-                <option value="1h" selected>1 Hour</option>
-                <option value="4h">4 Hours</option>
-                <option value="1d">1 Day</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label>Свечей:</label>
-            <select id="candleLimit">
-                <option value="50">50</option>
-                <option value="100" selected>100</option>
-                <option value="200">200</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label>Период анализа:</label>
-            <select id="trainingDaysSelect">
-                <option value="1">1 день</option>
-                <option value="3">3 дня</option>
-                <option value="7" selected>7 дней</option>
-                <option value="30">1 месяц</option>
-            </select>
-        </div>
-
-        <button class="btn-primary">🔄 Обновить график</button>
-        <button class="btn-success">▶️ Включить автообновление</button>
-        <button class="btn-warning">🎯 Принудительное обновление</button>
+    <!-- СПИСОК АЛЕРТОВ -->
+    <div class="alerts-list" id="alertsList">
+        <div class="loading">Загрузка алертов...</div>
     </div>
+</div>
+
+<!-- ОСНОВНЫЕ КОНТРОЛЫ (ОТДЕЛЬНО ОТ АЛЕРТОВ) -->
+<div class="controls">
+    <div class="control-group">
+        <label>Тип анализа:</label>
+        <select id="analysisTypeSelect">
+            <option value="spot" selected>Spot анализ</option>
+            <option value="futures">Futures анализ</option>
+            <option value="both">Spot + Futures</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Контракт:</label>
+        <select id="futuresTypeSelect">
+            <option value="linear" selected>Linear (USDT)</option>
+            <option value="inverse">Inverse (COIN-M)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Символ:</label>
+        <select id="symbolSelect">
+            <option value="ETHUSDT">ETH/USDT (Spot)</option>
+            <option value="BTCUSDT">BTC/USDT (Spot)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Таймфрейм:</label>
+        <select id="timeframeSelect">
+            <option value="1m">1 Minute</option>
+            <option value="5m">5 Minutes</option>
+            <option value="15m">15 Minutes</option>
+            <option value="30m">30 Minutes</option>
+            <option value="1h" selected>1 Hour</option>
+            <option value="4h">4 Hours</option>
+            <option value="1d">1 Day</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Свечей:</label>
+        <select id="candleLimit">
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="200">200</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Период анализа:</label>
+        <select id="trainingDaysSelect">
+            <option value="1">1 день</option>
+            <option value="3">3 дня</option>
+            <option value="7" selected>7 дней</option>
+            <option value="30">1 месяц</option>
+        </select>
+    </div>
+
+    <button class="btn-primary" id="refreshChartBtn">🔄 Обновить график</button>
+    <button class="btn-success" id="autoUpdateBtn">▶️ Включить автообновление</button>
+    <button class="btn-warning" id="forceRefreshBtn">🎯 Принудительное обновление</button>
+</div>
 
     <!-- Индикатор режима анализа -->
     <div class="analysis-mode-indicator">
