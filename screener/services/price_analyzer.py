@@ -167,8 +167,7 @@ class PriceAnalyzer:
 
     def analyze_movement(self, current_prices: Dict) -> Dict:
         """
-        Полный анализ движения цен
-        Возвращает словарь с результатами анализа
+        Полный анализ движения цен для spot и futures
         """
         result = {
             'basis_eth': 0.0,
@@ -195,86 +194,123 @@ class PriceAnalyzer:
                 current_prices['btc_futures']
             )
 
-        # Расчет собственного движения если модели готовы
+        # Spot анализ
         if (self.spot_coef is not None and
                 current_prices.get('eth_spot') and
                 current_prices.get('btc_spot')):
 
             # Предсказанная цена по модели
             predicted_eth_spot = self.spot_intercept + self.spot_coef * current_prices['btc_spot']
+            actual_eth_spot = current_prices['eth_spot']
 
             # Собственное движение
-            actual_eth_spot = current_prices['eth_spot']
             result['spot_intrinsic'] = ((actual_eth_spot - predicted_eth_spot) / predicted_eth_spot) * 100
 
-            # Влияние BTC и собственное движение ETH (если есть исторические данные)
+            # Влияние BTC и собственная сила (исправленная логика)
             eth_history = self.historical_data['eth_spot']
             btc_history = self.historical_data['btc_spot']
 
-            if len(eth_history) >= 2:
-                # Ожидаемое движение (по модели)
-                last_btc_price = btc_history[-1] if btc_history else current_prices['btc_spot']
-                predicted_previous_eth = self.spot_intercept + self.spot_coef * last_btc_price
-                last_eth_price = eth_history[-1] if eth_history else current_prices['eth_spot']
+            if len(eth_history) >= 2 and len(btc_history) >= 2:
+                # Предыдущие цены
+                last_btc_price = btc_history[-1]
+                last_eth_price = eth_history[-1]
 
-                expected_move = ((predicted_eth_spot - predicted_previous_eth) / predicted_previous_eth) * 100
+                # Предсказанная предыдущая цена
+                predicted_previous_eth = self.spot_intercept + self.spot_coef * last_btc_price
+
+                # Фактическое общее движение
                 actual_total_move = ((actual_eth_spot - last_eth_price) / last_eth_price) * 100
 
-                # Распределение влияния
-                if actual_total_move != 0:
-                    result['spot_btc_influence'] = (expected_move / actual_total_move) * 100
-                    result['spot_eth_own'] = (result['spot_intrinsic'] / actual_total_move) * 100
+                # Ожидаемое движение по модели
+                expected_move = ((predicted_eth_spot - predicted_previous_eth) / predicted_previous_eth) * 100
 
-        # Аналогично для фьючерсов
+                # Собственное движение за период
+                intrinsic_move_period = ((actual_eth_spot - last_eth_price) - (
+                            predicted_eth_spot - predicted_previous_eth)) / last_eth_price * 100
+
+                # Исправленный расчет влияния (сумма = 100%)
+                if abs(actual_total_move) > 0.001:  # Избегаем деления на ноль
+                    total_impact = abs(expected_move) + abs(intrinsic_move_period)
+
+                    if total_impact > 0:
+                        # Распределяем влияние пропорционально
+                        btc_share = (abs(expected_move) / total_impact) * 100
+                        eth_share = (abs(intrinsic_move_period) / total_impact) * 100
+
+                        # Сохраняем знаки для направления
+                        if expected_move < 0:
+                            btc_share = -btc_share
+                        if intrinsic_move_period < 0:
+                            eth_share = -eth_share
+
+                        result['spot_btc_influence'] = btc_share
+                        result['spot_eth_own'] = eth_share
+                    else:
+                        # Если нет движения - равное распределение
+                        result['spot_btc_influence'] = 50
+                        result['spot_eth_own'] = 50
+                else:
+                    # Если движение очень маленькое
+                    result['spot_btc_influence'] = 50
+                    result['spot_eth_own'] = 50
+
+        # Futures анализ (аналогично spot)
         if (self.futures_coef is not None and
                 current_prices.get('eth_futures') and
                 current_prices.get('btc_futures')):
+
             predicted_eth_futures = self.futures_intercept + self.futures_coef * current_prices['btc_futures']
             actual_eth_futures = current_prices['eth_futures']
             result['futures_intrinsic'] = ((actual_eth_futures - predicted_eth_futures) / predicted_eth_futures) * 100
 
-        result['models_ready'] = self.spot_coef is not None
+            # Влияние BTC Futures и собственная сила ETH Futures
+            eth_futures_history = self.historical_data['eth_futures']
+            btc_futures_history = self.historical_data['btc_futures']
+
+            if len(eth_futures_history) >= 2 and len(btc_futures_history) >= 2:
+                # Предыдущие цены фьючерсов
+                last_btc_futures = btc_futures_history[-1]
+                last_eth_futures = eth_futures_history[-1]
+
+                # Предсказанная предыдущая цена фьючерсов
+                predicted_previous_eth_futures = self.futures_intercept + self.futures_coef * last_btc_futures
+
+                # Фактическое общее движение фьючерсов
+                actual_futures_total_move = ((actual_eth_futures - last_eth_futures) / last_eth_futures) * 100
+
+                # Ожидаемое движение фьючерсов по модели
+                expected_futures_move = ((
+                                                     predicted_eth_futures - predicted_previous_eth_futures) / predicted_previous_eth_futures) * 100
+
+                # Собственное движение фьючерсов за период
+                futures_intrinsic_move_period = ((actual_eth_futures - last_eth_futures) - (
+                            predicted_eth_futures - predicted_previous_eth_futures)) / last_eth_futures * 100
+
+                # Исправленный расчет влияния для фьючерсов
+                if abs(actual_futures_total_move) > 0.001:
+                    futures_total_impact = abs(expected_futures_move) + abs(futures_intrinsic_move_period)
+
+                    if futures_total_impact > 0:
+                        futures_btc_share = (abs(expected_futures_move) / futures_total_impact) * 100
+                        futures_eth_share = (abs(futures_intrinsic_move_period) / futures_total_impact) * 100
+
+                        if expected_futures_move < 0:
+                            futures_btc_share = -futures_btc_share
+                        if futures_intrinsic_move_period < 0:
+                            futures_eth_share = -futures_eth_share
+
+                        result['futures_btc_influence'] = futures_btc_share
+                        result['futures_eth_own'] = futures_eth_share
+                    else:
+                        result['futures_btc_influence'] = 50
+                        result['futures_eth_own'] = 50
+                else:
+                    result['futures_btc_influence'] = 50
+                    result['futures_eth_own'] = 50
+
+        result['models_ready'] = self.spot_coef is not None or self.futures_coef is not None
 
         return result
-
-    def get_analysis_report(self, current_prices: Dict) -> str:
-        """
-        Формирование текстового отчета анализа
-        """
-        analysis = self.analyze_movement(current_prices)
-
-        report = []
-        report.append("📊 АНАЛИЗ ДВИЖЕНИЯ ЦЕН")
-        report.append("=" * 50)
-
-        # Базис
-        report.append(f"📈 БАЗИС (Futures - Spot):")
-        report.append(f"   ETH: {analysis['basis_eth']:+.3f}%")
-        report.append(f"   BTC: {analysis['basis_btc']:+.3f}%")
-
-        if analysis['models_ready']:
-            report.append(f"\n🎯 СОБСТВЕННОЕ ДВИЖЕНИЕ ETH:")
-            report.append(f"   Spot: {analysis['spot_intrinsic']:+.3f}%")
-            report.append(f"   Futures: {analysis['futures_intrinsic']:+.3f}%")
-
-            if analysis['spot_btc_influence'] != 0:
-                report.append(f"\n📊 РАСПРЕДЕЛЕНИЕ ВЛИЯНИЯ (Spot):")
-                report.append(f"   За счет BTC: {analysis['spot_btc_influence']:.1f}%")
-                report.append(f"   Собственное движение ETH: {analysis['spot_eth_own']:.1f}%")
-
-                # Простое объяснение
-                if analysis['spot_intrinsic'] > 1.0:
-                    report.append(f"   🚀 ETH растет самостоятельно!")
-                elif analysis['spot_intrinsic'] < -1.0:
-                    report.append(f"   🔻 ETH падает самостоятельно!")
-                else:
-                    report.append(f"   🔗 Движение ETH соответствует BTC")
-
-        else:
-            report.append(f"\n🔄 Модели в процессе обучения...")
-
-        report.append("=" * 50)
-        return "\n".join(report)
 
     def get_market_scenario(self, analysis: Dict) -> Dict:
         """

@@ -25,23 +25,30 @@ class DataAPIView(View):
     def get(self, request):
         try:
             training_days = int(request.GET.get('training_days', 7))
+            analysis_type = request.GET.get('analysis_type', 'spot')  # spot, futures, both
+            futures_type = request.GET.get('futures_type', 'linear')  # linear, inverse
 
-            # ВСЕГДА обновляем период и перезагружаем данные
+            # Всегда обновляем период и перезагружаем данные
             analyzer.set_training_period(training_days)
+            self._load_historical_data(training_days, analysis_type, futures_type)
 
-            # ПРИНУДИТЕЛЬНО загружаем данные с новым периодом
-            self._load_historical_data(training_days)
+            # Получаем цены в зависимости от типа анализа
+            prices = self._get_prices_by_analysis_type(analysis_type, futures_type)
 
-            # Остальной код без изменений...
-            prices = api.get_correct_prices()
-
-            # Если модели еще не готовы, пробуем построить их
+            # Строим модели если не готовы
             if not analyzer.spot_coef:
                 analyzer._build_regression_models()
 
+            # Анализируем движение
             analysis = analyzer.analyze_movement(prices)
             market_scenario = analyzer.get_market_scenario(analysis)
             analysis_info = analyzer.get_analysis_info()
+
+            # Добавляем информацию о типе анализа
+            analysis_info.update({
+                'analysis_type': analysis_type,
+                'futures_type': futures_type
+            })
 
             return JsonResponse({
                 'success': True,
@@ -58,31 +65,99 @@ class DataAPIView(View):
             logger.error(f"DataAPIView error: {e}")
             return JsonResponse({'success': False, 'error': str(e)})
 
-    def _load_historical_data(self, training_days: int):
-        """Загрузка исторических данных с указанным периодом"""
+    def _get_prices_by_analysis_type(self, analysis_type, futures_type):
+        """Получает цены в зависимости от типа анализа"""
+        prices = {}
+
+        # Всегда получаем спотовые цены для базового анализа
+        spot_prices = api.get_correct_prices()
+
+        if analysis_type == 'spot':
+            return {
+                'eth_spot': spot_prices.get('eth_spot'),
+                'btc_spot': spot_prices.get('btc_spot'),
+                'eth_futures': None,
+                'btc_futures': None
+            }
+        elif analysis_type == 'futures':
+            # Для фьючерсного анализа используем фьючерсные цены как основные
+            return {
+                'eth_spot': spot_prices.get('eth_spot'),  # Для расчета базиса
+                'btc_spot': spot_prices.get('btc_spot'),  # Для расчета базиса
+                'eth_futures': spot_prices.get('eth_futures'),
+                'btc_futures': spot_prices.get('btc_futures')
+            }
+        else:  # both
+            return spot_prices
+
+    def _load_historical_data(self, training_days: int, analysis_type: str, futures_type: str):
+        """Загрузка исторических данных с учетом типа анализа"""
         try:
-            # ВСЕГДА загружаем новые данные при смене периода
-            eth_klines = api.get_historical_data("ETHUSDT", "spot", "15m", training_days)
-            btc_klines = api.get_historical_data("BTCUSDT", "spot", "15m", training_days)
+            # Для spot анализа загружаем только спотовые данные
+            if analysis_type == 'spot':
+                eth_klines = api.get_historical_data("ETHUSDT", "spot", "15m", training_days)
+                btc_klines = api.get_historical_data("BTCUSDT", "spot", "15m", training_days)
 
-            if eth_klines and btc_klines:
-                eth_prices = [kline['close'] for kline in eth_klines]
-                btc_prices = [kline['close'] for kline in btc_klines]
+                if eth_klines and btc_klines:
+                    eth_prices = [kline['close'] for kline in eth_klines]
+                    btc_prices = [kline['close'] for kline in btc_klines]
 
-                # ОЧИЩАЕМ старые данные перед добавлением новых
-                analyzer.historical_data['eth_spot'] = []
-                analyzer.historical_data['btc_spot'] = []
-                analyzer.historical_data['eth_futures'] = []
-                analyzer.historical_data['btc_futures'] = []
+                    # Очищаем и добавляем только спотовые данные
+                    analyzer.historical_data['eth_spot'] = []
+                    analyzer.historical_data['btc_spot'] = []
+                    analyzer.historical_data['eth_futures'] = []
+                    analyzer.historical_data['btc_futures'] = []
 
-                analyzer.add_historical_data(eth_prices, btc_prices, eth_prices, btc_prices)
-                logger.info(f"Загружено {len(eth_prices)} точек данных за {training_days} дней")
+                    analyzer.add_historical_data(eth_prices, btc_prices, [], [])
 
-                # СБРАСЫВАЕМ модели чтобы перестроить их на новых данных
-                analyzer.spot_coef = None
-                analyzer.spot_intercept = None
-                analyzer.futures_coef = None
-                analyzer.futures_intercept = None
+            # Для futures анализа загружаем фьючерсные данные
+            elif analysis_type == 'futures':
+                eth_klines = api.get_historical_data("ETHUSDT", futures_type, "15m", training_days)
+                btc_klines = api.get_historical_data("BTCUSDT", futures_type, "15m", training_days)
+
+                if eth_klines and btc_klines:
+                    eth_prices = [kline['close'] for kline in eth_klines]
+                    btc_prices = [kline['close'] for kline in btc_klines]
+
+                    # Очищаем и добавляем только фьючерсные данные
+                    analyzer.historical_data['eth_spot'] = []
+                    analyzer.historical_data['btc_spot'] = []
+                    analyzer.historical_data['eth_futures'] = []
+                    analyzer.historical_data['btc_futures'] = []
+
+                    analyzer.add_historical_data([], [], eth_prices, btc_prices)
+
+            # Для комбинированного анализа загружаем оба типа данных
+            else:  # both
+                eth_spot_klines = api.get_historical_data("ETHUSDT", "spot", "15m", training_days)
+                btc_spot_klines = api.get_historical_data("BTCUSDT", "spot", "15m", training_days)
+                eth_futures_klines = api.get_historical_data("ETHUSDT", futures_type, "15m", training_days)
+                btc_futures_klines = api.get_historical_data("BTCUSDT", futures_type, "15m", training_days)
+
+                if all([eth_spot_klines, btc_spot_klines, eth_futures_klines, btc_futures_klines]):
+                    eth_spot_prices = [kline['close'] for kline in eth_spot_klines]
+                    btc_spot_prices = [kline['close'] for kline in btc_spot_klines]
+                    eth_futures_prices = [kline['close'] for kline in eth_futures_klines]
+                    btc_futures_prices = [kline['close'] for kline in btc_futures_klines]
+
+                    # Очищаем и добавляем все данные
+                    analyzer.historical_data['eth_spot'] = []
+                    analyzer.historical_data['btc_spot'] = []
+                    analyzer.historical_data['eth_futures'] = []
+                    analyzer.historical_data['btc_futures'] = []
+
+                    analyzer.add_historical_data(
+                        eth_spot_prices, btc_spot_prices,
+                        eth_futures_prices, btc_futures_prices
+                    )
+
+            # Сбрасываем модели для перестроения
+            analyzer.spot_coef = None
+            analyzer.spot_intercept = None
+            analyzer.futures_coef = None
+            analyzer.futures_intercept = None
+
+            logger.info(f"Загружены данные для {analysis_type} анализа ({futures_type})")
 
         except Exception as e:
             logger.error(f"Ошибка загрузки исторических данных: {e}")
