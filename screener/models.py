@@ -84,6 +84,7 @@ class PriceAlert(models.Model):
     status = models.CharField(max_length=20, choices=STATUS, default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     triggered_at = models.DateTimeField(null=True, blank=True)
+    current_price_when_triggered = models.FloatField(null=True, blank=True, verbose_name="Цена при срабатывании")
 
     class Meta:
         ordering = ['-created_at']
@@ -92,28 +93,26 @@ class PriceAlert(models.Model):
         return f"{self.name} ({self.symbol} {self.condition} ${self.target_price})"
 
     def check_condition(self, current_price):
-        """Проверка условия алерта"""
+        """Проверка условия алерта - МГНОВЕННОЕ срабатывание при достижении цены"""
+        if not current_price:
+            return False
+
         if self.condition == 'above':
             return current_price >= self.target_price
         else:  # below
             return current_price <= self.target_price
 
-    def save(self, *args, **kwargs):
-        # Автоматическая проверка при сохранении
+    def trigger(self, current_price):
+        """Мгновенное срабатывание алерта"""
         if self.status == 'active':
-            from screener.services.bybit_api import BybitAPI
-            api = BybitAPI(testnet=False)
+            self.status = 'triggered'
+            self.triggered_at = timezone.now()
+            self.current_price_when_triggered = current_price
+            self.save()
+            return True
+        return False
 
-            current_prices = api.get_correct_prices()
-            current_price = None
-
-            if self.symbol == 'ETHUSDT':
-                current_price = current_prices.get('eth_spot')
-            elif self.symbol == 'BTCUSDT':
-                current_price = current_prices.get('btc_spot')
-
-            if current_price and self.check_condition(current_price):
-                self.status = 'triggered'
-                self.triggered_at = timezone.now()
-
-        super().save(*args, **kwargs)
+    def get_trigger_message(self):
+        """Сообщение для уведомления о срабатывании"""
+        condition_text = "превысила" if self.condition == 'above' else "опустилась ниже"
+        return f"{self.symbol} {condition_text} ${self.target_price}. Текущая цена: ${self.current_price_when_triggered:.2f}"

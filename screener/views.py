@@ -440,7 +440,7 @@ class AlertCreateAPIView(View):
             )
             alert.save()
 
-            # Проверяем, не сработал ли алерт сразу
+            # ПРОВЕРЯЕМ МГНОВЕННОЕ СРАБАТЫВАНИЕ ПРИ СОЗДАНИИ
             current_prices = api.get_correct_prices()
             current_price = None
 
@@ -449,14 +449,16 @@ class AlertCreateAPIView(View):
             elif symbol == 'BTCUSDT':
                 current_price = current_prices.get('btc_spot')
 
+            # Если цена уже достигла цели - сразу срабатываем
             if current_price and alert.check_condition(current_price):
-                alert.status = 'triggered'
-                alert.triggered_at = timezone.now()
-                alert.save()
+                alert.trigger(current_price)
+                show_immediate_alert = True
+            else:
+                show_immediate_alert = False
 
             return JsonResponse({
                 'success': True,
-                'message': 'Алерт успешно создан',
+                'message': 'Алерт успешно создан' + (' (сразу сработал!)' if show_immediate_alert else ''),
                 'alert': {
                     'id': alert.id,
                     'name': alert.name,
@@ -466,7 +468,9 @@ class AlertCreateAPIView(View):
                     'status': alert.status,
                     'created_at': alert.created_at.strftime('%d.%m.%Y %H:%M'),
                     'triggered_at': alert.triggered_at.strftime('%d.%m.%Y %H:%M') if alert.triggered_at else None,
-                }
+                    'current_price_when_triggered': alert.current_price_when_triggered,
+                },
+                'immediate_trigger': show_immediate_alert
             })
 
         except Exception as e:
@@ -498,6 +502,7 @@ class AlertListAPIView(View):
                     'status': alert.status,
                     'created_at': alert.created_at.strftime('%d.%m.%Y %H:%M'),
                     'triggered_at': alert.triggered_at.strftime('%d.%m.%Y %H:%M') if alert.triggered_at else None,
+                    'current_price_when_triggered': alert.current_price_when_triggered,
                 })
 
             return JsonResponse({
@@ -537,7 +542,7 @@ class AlertDeleteAPIView(View):
 @method_decorator(login_required, name='dispatch')
 class CheckAlertsView(View):
     def post(self, request):
-        """Проверка срабатывания алертов"""
+        """Проверка срабатывания алертов - МГНОВЕННОЕ срабатывание при достижении цены"""
         try:
             if not request.user.is_authenticated:
                 return JsonResponse({
@@ -563,27 +568,78 @@ class CheckAlertsView(View):
                 elif alert.symbol == 'BTCUSDT':
                     current_price = current_prices.get('btc_spot')
 
+                # МГНОВЕННАЯ ПРОВЕРКА - если цена достигла цели
                 if current_price and alert.check_condition(current_price):
-                    # Алерт сработал
-                    alert.status = 'triggered'
-                    alert.triggered_at = timezone.now()
-                    alert.save()
+                    # Алерт сработал МГНОВЕННО
+                    if alert.trigger(current_price):
+                        triggered_alerts.append({
+                            'id': alert.id,
+                            'name': alert.name,
+                            'symbol': alert.symbol,
+                            'condition': alert.condition,
+                            'target_price': alert.target_price,
+                            'current_price': current_price,
+                            'trigger_message': alert.get_trigger_message(),
+                            'triggered_at': alert.triggered_at.strftime(
+                                '%d.%m.%Y %H:%M') if alert.triggered_at else None
+                        })
 
-                    triggered_alerts.append({
-                        'id': alert.id,
-                        'name': alert.name,
-                        'symbol': alert.symbol,
-                        'condition': alert.condition,
-                        'target_price': alert.target_price,
-                        'current_price': current_price
-                    })
+            logger.info(f"🔔 Проверка алертов: {len(active_alerts)} активных, {len(triggered_alerts)} сработало")
 
             return JsonResponse({
                 'success': True,
                 'triggered_alerts': triggered_alerts,
-                'checked_count': len(active_alerts)
+                'checked_count': len(active_alerts),
+                'triggered_count': len(triggered_alerts)
             })
 
         except Exception as e:
             logger.error(f"Alert check error: {e}")
+            return JsonResponse({'success': False, 'error': str(e)})
+
+
+# Дополнительный endpoint для ручной проверки алертов
+@method_decorator(login_required, name='dispatch')
+class ManualCheckAlertsView(View):
+    def get(self, request):
+        """Ручная проверка всех алертов пользователя"""
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Требуется авторизация'
+                })
+
+            # Получаем текущие цены
+            current_prices = api.get_correct_prices()
+
+            triggered_alerts = []
+            active_alerts = PriceAlert.objects.filter(
+                user=request.user,
+                status='active'
+            )
+
+            for alert in active_alerts:
+                current_price = None
+                if alert.symbol == 'ETHUSDT':
+                    current_price = current_prices.get('eth_spot')
+                elif alert.symbol == 'BTCUSDT':
+                    current_price = current_prices.get('btc_spot')
+
+                if current_price and alert.check_condition(current_price):
+                    if alert.trigger(current_price):
+                        triggered_alerts.append({
+                            'id': alert.id,
+                            'name': alert.name,
+                            'message': alert.get_trigger_message()
+                        })
+
+            return JsonResponse({
+                'success': True,
+                'triggered_alerts': triggered_alerts,
+                'message': f'Проверено {len(active_alerts)} алертов, сработало: {len(triggered_alerts)}'
+            })
+
+        except Exception as e:
+            logger.error(f"Manual alert check error: {e}")
             return JsonResponse({'success': False, 'error': str(e)})
