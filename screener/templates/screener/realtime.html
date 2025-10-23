@@ -365,6 +365,15 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .login-required {
+            background: #dc3545;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -374,121 +383,123 @@
         <p>Автоматическое обновление цен каждые 2 секунды и графика каждые 10 секунд</p>
     </div>
 
-<!-- СЕКЦИЯ АЛЕРТОВ -->
-<div class="alerts-section">
-    <div class="alerts-header">
-        <h3>🔔 Управление алертами</h3>
-        <button class="btn-info" id="toggleAlertFormBtn">
-            📝 Создать новый алерт
-        </button>
-    </div>
+    <!-- СЕКЦИЯ АЛЕРТОВ -->
+    <div class="alerts-section">
+        <div class="alerts-header">
+            <h3>🔔 Управление алертами</h3>
+            <button class="btn-info" id="toggleAlertFormBtn">
+                📝 Создать новый алерт
+            </button>
+        </div>
 
-    <!-- ФОРМА СОЗДАНИЯ АЛЕРТА -->
-    <div class="alert-form" id="alertForm" style="display: none;">
-        <div class="form-row">
-            <div class="form-group">
-                <label>Название алерта:</label>
-                <input type="text" id="alertName" placeholder="ETH достиг 4000" maxlength="100">
+        <!-- ФОРМА СОЗДАНИЯ АЛЕРТА -->
+        <div class="alert-form" id="alertForm" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Название алерта:</label>
+                    <input type="text" id="alertName" placeholder="ETH достиг 4000" maxlength="100">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Символ:</label>
+                    <select id="alertSymbol">
+                        <option value="ETHUSDT">ETH/USDT</option>
+                        <option value="BTCUSDT">BTC/USDT</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Условие:</label>
+                    <select id="alertCondition">
+                        <option value="above">Цена выше</option>
+                        <option value="below">Цена ниже</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Целевая цена ($):</label>
+                    <input type="number" id="alertTargetPrice" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group" style="align-items: flex-end;">
+                    <button class="btn-success" id="createAlertBtn">✅ Создать алерт</button>
+                </div>
             </div>
         </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label>Символ:</label>
-                <select id="alertSymbol">
-                    <option value="ETHUSDT">ETH/USDT</option>
-                    <option value="BTCUSDT">BTC/USDT</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Условие:</label>
-                <select id="alertCondition">
-                    <option value="above">Цена выше</option>
-                    <option value="below">Цена ниже</option>
-                </select>
-            </div>
+        <!-- СПИСОК АЛЕРТОВ -->
+        <div id="alertsAuthMessage" class="login-required" style="display: none;">
+            🔐 Для работы с алертами требуется авторизация
         </div>
-
-        <div class="form-row">
-            <div class="form-group">
-                <label>Целевая цена ($):</label>
-                <input type="number" id="alertTargetPrice" step="0.01" placeholder="0.00">
-            </div>
-            <div class="form-group" style="align-items: flex-end;">
-                <button class="btn-success" id="createAlertBtn">✅ Создать алерт</button>
-            </div>
+        <div class="alerts-list" id="alertsList">
+            <div class="loading">Загрузка алертов...</div>
         </div>
     </div>
 
-    <!-- СПИСОК АЛЕРТОВ -->
-    <div class="alerts-list" id="alertsList">
-        <div class="loading">Загрузка алертов...</div>
-    </div>
-</div>
+    <!-- ОСНОВНЫЕ КОНТРОЛЫ -->
+    <div class="controls">
+        <div class="control-group">
+            <label>Тип анализа:</label>
+            <select id="analysisTypeSelect">
+                <option value="spot" selected>Spot анализ</option>
+                <option value="futures">Futures анализ</option>
+            </select>
+        </div>
 
-<!-- ОСНОВНЫЕ КОНТРОЛЫ (ОТДЕЛЬНО ОТ АЛЕРТОВ) -->
-<div class="controls">
-    <div class="control-group">
-        <label>Тип анализа:</label>
-        <select id="analysisTypeSelect">
-            <option value="spot" selected>Spot анализ</option>
-            <option value="futures">Futures анализ</option>
-            <option value="both">Spot + Futures</option>
-        </select>
-    </div>
+        <div class="control-group">
+            <label>Контракт:</label>
+            <select id="futuresTypeSelect">
+                <option value="linear" selected>Linear (USDT)</option>
+                <option value="inverse">Inverse (COIN-M)</option>
+            </select>
+        </div>
 
-    <div class="control-group">
-        <label>Контракт:</label>
-        <select id="futuresTypeSelect">
-            <option value="linear" selected>Linear (USDT)</option>
-            <option value="inverse">Inverse (COIN-M)</option>
-        </select>
-    </div>
+        <div class="control-group">
+            <label>Символ:</label>
+            <select id="symbolSelect">
+                <option value="ETHUSDT">ETH/USDT</option>
+                <option value="BTCUSDT">BTC/USDT</option>
+            </select>
+        </div>
 
-    <div class="control-group">
-        <label>Символ:</label>
-        <select id="symbolSelect">
-            <option value="ETHUSDT">ETH/USDT (Spot)</option>
-            <option value="BTCUSDT">BTC/USDT (Spot)</option>
-        </select>
-    </div>
+        <div class="control-group">
+            <label>Таймфрейм:</label>
+            <select id="timeframeSelect">
+                <option value="1m">1 Minute</option>
+                <option value="5m">5 Minutes</option>
+                <option value="15m">15 Minutes</option>
+                <option value="30m">30 Minutes</option>
+                <option value="1h" selected>1 Hour</option>
+                <option value="4h">4 Hours</option>
+                <option value="1d">1 Day</option>
+            </select>
+        </div>
 
-    <div class="control-group">
-        <label>Таймфрейм:</label>
-        <select id="timeframeSelect">
-            <option value="1m">1 Minute</option>
-            <option value="5m">5 Minutes</option>
-            <option value="15m">15 Minutes</option>
-            <option value="30m">30 Minutes</option>
-            <option value="1h" selected>1 Hour</option>
-            <option value="4h">4 Hours</option>
-            <option value="1d">1 Day</option>
-        </select>
-    </div>
+        <div class="control-group">
+            <label>Свечей:</label>
+            <select id="candleLimit">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="200">200</option>
+            </select>
+        </div>
 
-    <div class="control-group">
-        <label>Свечей:</label>
-        <select id="candleLimit">
-            <option value="50">50</option>
-            <option value="100" selected>100</option>
-            <option value="200">200</option>
-        </select>
-    </div>
+        <div class="control-group">
+            <label>Период анализа:</label>
+            <select id="trainingDaysSelect">
+                <option value="1">1 день</option>
+                <option value="3">3 дня</option>
+                <option value="7" selected>7 дней</option>
+                <option value="30">1 месяц</option>
+            </select>
+        </div>
 
-    <div class="control-group">
-        <label>Период анализа:</label>
-        <select id="trainingDaysSelect">
-            <option value="1">1 день</option>
-            <option value="3">3 дня</option>
-            <option value="7" selected>7 дней</option>
-            <option value="30">1 месяц</option>
-        </select>
+        <button class="btn-primary" id="refreshChartBtn">🔄 Обновить график</button>
+        <button class="btn-success" id="autoUpdateBtn">▶️ Включить автообновление</button>
+        <button class="btn-warning" id="forceRefreshBtn">🎯 Принудительное обновление</button>
     </div>
-
-    <button class="btn-primary" id="refreshChartBtn">🔄 Обновить график</button>
-    <button class="btn-success" id="autoUpdateBtn">▶️ Включить автообновление</button>
-    <button class="btn-warning" id="forceRefreshBtn">🎯 Принудительное обновление</button>
-</div>
 
     <!-- Индикатор режима анализа -->
     <div class="analysis-mode-indicator">
@@ -516,8 +527,7 @@
             <!-- ГРАФИК СОБСТВЕННОГО ДВИЖЕНИЯ -->
             <div class="chart-container">
                 <div class="chart-header">
-                    <h3 id="intrinsicChartTitle">📊 Историческое собственное движение ETH Spot относительно BTC
-                        Spot</h3>
+                    <h3 id="intrinsicChartTitle">📊 Историческое собственное движение ETH Spot относительно BTC Spot</h3>
                     <div class="chart-controls">
                         <div class="control-group">
                             <label>Период графика:</label>
@@ -660,7 +670,7 @@
     let currentChartData = null;
     let currentAnalysisType = 'spot';
     let currentFuturesType = 'linear';
-    let userAlerts = [];
+    let isUserAuthenticated = false;
 
     // Конфигурация интервалов
     const UPDATE_CONFIG = {
@@ -707,6 +717,11 @@
 
     // ФУНКЦИИ ДЛЯ РАБОТЫ С АЛЕРТАМИ
     function toggleAlertForm() {
+        if (!isUserAuthenticated) {
+            showStatus('❌ Для создания алертов требуется авторизация', 'error');
+            return;
+        }
+
         const form = document.getElementById('alertForm');
         const btn = document.getElementById('toggleAlertFormBtn');
 
@@ -729,6 +744,11 @@
 
     async function createAlert() {
         try {
+            if (!isUserAuthenticated) {
+                showStatus('❌ Для создания алертов требуется авторизация', 'error');
+                return;
+            }
+
             const alertData = {
                 name: document.getElementById('alertName').value.trim(),
                 symbol: document.getElementById('alertSymbol').value,
@@ -764,7 +784,12 @@
                 showStatus('❌ Ошибка: ' + response.data.error, 'error');
             }
         } catch (error) {
-            showStatus('❌ Ошибка создания: ' + error.message, 'error');
+            if (error.response && error.response.status === 403) {
+                showStatus('❌ Для создания алертов требуется авторизация', 'error');
+                checkAuthStatus();
+            } else {
+                showStatus('❌ Ошибка создания: ' + error.message, 'error');
+            }
         }
     }
 
@@ -773,12 +798,20 @@
             const response = await axios.get('/screener/api/alerts/list/');
 
             if (response.data.success) {
+                isUserAuthenticated = true;
+                document.getElementById('alertsAuthMessage').style.display = 'none';
                 renderAlertsList(response.data.alerts);
             } else {
                 document.getElementById('alertsList').innerHTML = '<div class="loading">Ошибка загрузки</div>';
             }
         } catch (error) {
-            document.getElementById('alertsList').innerHTML = '<div class="loading">Ошибка загрузки алертов</div>';
+            if (error.response && error.response.status === 403) {
+                isUserAuthenticated = false;
+                document.getElementById('alertsAuthMessage').style.display = 'block';
+                document.getElementById('alertsList').innerHTML = '<div class="loading">Авторизуйтесь для просмотра алертов</div>';
+            } else {
+                document.getElementById('alertsList').innerHTML = '<div class="loading">Ошибка загрузки алертов</div>';
+            }
         }
     }
 
@@ -791,27 +824,27 @@
         }
 
         alertsList.innerHTML = alerts.map(alert => `
-        <div class="alert-item ${alert.status}">
-            <div class="alert-info">
-                <div class="alert-name">${alert.name}</div>
-                <div class="alert-details">
-                    ${alert.symbol} ${alert.condition === 'above' ? '>' : '<'} $${alert.target_price}
+            <div class="alert-item ${alert.status}">
+                <div class="alert-info">
+                    <div class="alert-name">${alert.name}</div>
+                    <div class="alert-details">
+                        ${alert.symbol} ${alert.condition === 'above' ? '>' : '<'} $${alert.target_price}
+                    </div>
+                    <div class="alert-details">
+                        Создан: ${alert.created_at}
+                        ${alert.triggered_at ? ` | Сработал: ${alert.triggered_at}` : ''}
+                    </div>
                 </div>
-                <div class="alert-details">
-                    Создан: ${alert.created_at}
-                    ${alert.triggered_at ? ` | Сработал: ${alert.triggered_at}` : ''}
+                <div class="alert-actions">
+                    <span class="alert-status ${alert.status}">
+                        ${alert.status === 'active' ? 'Активен' : alert.status === 'triggered' ? 'Сработал' : 'Отменен'}
+                    </span>
+                    ${alert.status === 'active' ?
+                        `<button class="delete-btn" onclick="deleteAlert(${alert.id})">🗑️</button>` : ''
+                    }
                 </div>
             </div>
-            <div class="alert-actions">
-                <span class="alert-status ${alert.status}">
-                    ${alert.status === 'active' ? 'Активен' : alert.status === 'triggered' ? 'Сработал' : 'Отменен'}
-                </span>
-                ${alert.status === 'active' ?
-            `<button class="delete-btn" onclick="deleteAlert(${alert.id})">🗑️</button>` : ''
-        }
-            </div>
-        </div>
-    `).join('');
+        `).join('');
     }
 
     async function deleteAlert(alertId) {
@@ -835,6 +868,8 @@
     }
 
     async function checkAlerts(currentPrices) {
+        if (!isUserAuthenticated) return;
+
         try {
             const response = await axios.post('/screener/api/alerts/check/', {
                 prices: currentPrices
@@ -844,7 +879,7 @@
                 response.data.triggered_alerts.forEach(alert => {
                     showAlertNotification(alert);
                 });
-                loadAlerts(); // Обновляем список
+                loadAlerts();
             }
         } catch (error) {
             console.error('Ошибка проверки алертов:', error);
@@ -854,24 +889,24 @@
     function showAlertNotification(alert) {
         const notification = document.createElement('div');
         notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #dc3545;
-        color: white;
-        padding: 15px;
-        border-radius: 8px;
-        z-index: 1000;
-        max-width: 300px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    `;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
 
         notification.innerHTML = `
-        <strong>🔔 Алерт сработал!</strong><br>
-        ${alert.name}<br>
-        <small>${alert.symbol} ${alert.condition === 'above' ? '>' : '<'} $${alert.target_price}</small><br>
-        <small>Текущая цена: $${alert.current_price.toFixed(2)}</small>
-    `;
+            <strong>🔔 Алерт сработал!</strong><br>
+            ${alert.name}<br>
+            <small>${alert.symbol} ${alert.condition === 'above' ? '>' : '<'} $${alert.target_price}</small><br>
+            <small>Текущая цена: $${alert.current_price.toFixed(2)}</small>
+        `;
 
         document.body.appendChild(notification);
 
@@ -880,12 +915,20 @@
         }, 5000);
     }
 
+    // Проверка статуса аутентификации
+    async function checkAuthStatus() {
+        try {
+            await loadAlerts();
+        } catch (error) {
+            isUserAuthenticated = false;
+        }
+    }
+
     // Получение читаемого имени типа анализа
     function getAnalysisTypeName(type) {
         const names = {
             'spot': 'Spot анализ',
-            'futures': 'Futures анализ',
-            'both': 'Spot + Futures анализ'
+            'futures': 'Futures анализ'
         };
         return names[type] || type;
     }
@@ -901,56 +944,27 @@
 
     // Получение типа данных для символа
     function getDataTypeForSymbol() {
-        const analysisType = document.getElementById('analysisTypeSelect').value;
-        if (analysisType === 'spot') {
-            return 'spot';
-        } else {
-            return document.getElementById('futuresTypeSelect').value;
-        }
+        return document.getElementById('analysisTypeSelect').value;
     }
 
     // Обновление опций символов в зависимости от типа анализа
     function updateSymbolOptions() {
         const symbolSelect = document.getElementById('symbolSelect');
         const analysisType = document.getElementById('analysisTypeSelect').value;
-        const futuresType = document.getElementById('futuresTypeSelect').value;
-
-        const currentSymbol = symbolSelect.value;
 
         symbolSelect.innerHTML = '';
 
-        let newOptions = [];
+        const options = [
+            {value: 'ETHUSDT', text: 'ETH/USDT'},
+            {value: 'BTCUSDT', text: 'BTC/USDT'}
+        ];
 
-        if (analysisType === 'spot') {
-            newOptions = [
-                {value: 'ETHUSDT', text: 'ETH/USDT (Spot)'},
-                {value: 'BTCUSDT', text: 'BTC/USDT (Spot)'}
-            ];
-        } else if (analysisType === 'futures' || analysisType === 'both') {
-            if (futuresType === 'linear') {
-                newOptions = [
-                    {value: 'ETHUSDT', text: 'ETH/USDT (Futures Linear)'},
-                    {value: 'BTCUSDT', text: 'BTC/USDT (Futures Linear)'}
-                ];
-            } else {
-                newOptions = [
-                    {value: 'ETHUSD', text: 'ETH/USD (Futures Inverse)'},
-                    {value: 'BTCUSD', text: 'BTC/USD (Futures Inverse)'}
-                ];
-            }
-        }
-
-        newOptions.forEach(option => {
+        options.forEach(option => {
             const optionElement = document.createElement('option');
             optionElement.value = option.value;
             optionElement.textContent = option.text;
             symbolSelect.appendChild(optionElement);
         });
-
-        const validValues = newOptions.map(opt => opt.value);
-        if (validValues.includes(currentSymbol)) {
-            symbolSelect.value = currentSymbol;
-        }
 
         updateChartTitle();
     }
@@ -959,14 +973,11 @@
     function updateChartTitle() {
         const priceChartTitle = document.getElementById('priceChartTitle');
         const analysisType = document.getElementById('analysisTypeSelect').value;
-        const futuresType = document.getElementById('futuresTypeSelect').value;
 
         if (analysisType === 'spot') {
             priceChartTitle.textContent = '📊 График цен - Spot';
-        } else if (futuresType === 'linear') {
-            priceChartTitle.textContent = '📈 График цен - Futures (Linear)';
         } else {
-            priceChartTitle.textContent = '📈 График цен - Futures (Inverse)';
+            priceChartTitle.textContent = '📈 График цен - Futures';
         }
     }
 
@@ -981,6 +992,7 @@
         updateSymbolOptions();
         updateInterfaceForAnalysisType();
 
+        // ПЕРЕЗАГРУЖАЕМ ВСЕ ГРАФИКИ ПРИ СМЕНЕ ТИПА АНАЛИЗА
         forceRefreshAll();
     }
 
@@ -993,25 +1005,14 @@
 
         analysisModeText.textContent = `Режим: ${getAnalysisTypeName(currentAnalysisType)}`;
 
-        if (currentAnalysisType === 'spot' || currentAnalysisType === 'both') {
+        if (currentAnalysisType === 'spot') {
+            spotAnalysisDashboard.style.display = 'flex';
+            futuresAnalysisDashboard.style.display = 'none';
             intrinsicChartTitle.textContent = '📊 Историческое собственное движение ETH Spot относительно BTC Spot';
         } else {
+            spotAnalysisDashboard.style.display = 'none';
+            futuresAnalysisDashboard.style.display = 'flex';
             intrinsicChartTitle.textContent = '📈 Историческое собственное движение ETH Futures относительно BTC Futures';
-        }
-
-        switch (currentAnalysisType) {
-            case 'spot':
-                spotAnalysisDashboard.style.display = 'flex';
-                futuresAnalysisDashboard.style.display = 'none';
-                break;
-            case 'futures':
-                spotAnalysisDashboard.style.display = 'none';
-                futuresAnalysisDashboard.style.display = 'flex';
-                break;
-            case 'both':
-                spotAnalysisDashboard.style.display = 'flex';
-                futuresAnalysisDashboard.style.display = 'flex';
-                break;
         }
     }
 
@@ -1029,6 +1030,7 @@
         showStatus('Принудительное обновление всех данных...', 'warning');
         await loadChartData(false);
         await updatePrices();
+        await loadIntrinsicChart();
         showStatus('Все данные обновлены!', 'success');
     }
 
@@ -1049,7 +1051,8 @@
                     symbol: symbol,
                     timeframe: timeframe,
                     limit: limit,
-                    data_type: dataType
+                    data_type: dataType,
+                    futures_type: currentFuturesType
                 },
                 timeout: 10000
             });
@@ -1097,9 +1100,12 @@
                 decreasing: {line: {color: '#FF5252'}, fillcolor: '#FF5252'}
             };
 
+            const dataType = getDataTypeForSymbol();
+            const dataTypeName = dataType === 'spot' ? 'Spot' : `Futures (${getFuturesTypeName(currentFuturesType)})`;
+
             const layout = {
                 title: {
-                    text: `${chartData.symbol} - ${chartData.timeframe} (${getDataTypeForSymbol().toUpperCase()})`,
+                    text: `${chartData.symbol} - ${chartData.timeframe} (${dataTypeName})`,
                     font: {color: 'white', size: 16}
                 },
                 xaxis: {
@@ -1139,18 +1145,17 @@
         if (!infoElement || !analysisInfo) return;
 
         const dataType = getDataTypeForSymbol();
-        const dataTypeName = dataType === 'spot' ? 'Spot' :
-            dataType === 'linear' ? 'Futures Linear' : 'Futures Inverse';
+        const dataTypeName = dataType === 'spot' ? 'Spot' : `Futures ${getFuturesTypeName(currentFuturesType)}`;
 
         infoElement.innerHTML = `
-        <div><strong>Символ:</strong> <span id="current-symbol">${document.getElementById('symbolSelect').value}</span></div>
-        <div><strong>Таймфрейм:</strong> <span id="current-timeframe">${document.getElementById('timeframeSelect').value}</span></div>
-        <div><strong>Тип данных:</strong> <span id="current-data-type">${dataTypeName}</span></div>
-        <div><strong>Период анализа:</strong> <span id="current-training-days">${analysisInfo.training_days} дней</span></div>
-        <div><strong>Тип анализа:</strong> <span id="current-analysis-type">${getAnalysisTypeName(currentAnalysisType)}</span></div>
-        <div><strong>Тип контракта:</strong> <span id="current-futures-type">${getFuturesTypeName(currentFuturesType)}</span></div>
-        <div><strong>Обновлено:</strong> <span id="last-update-time">${new Date().toLocaleTimeString()}</span></div>
-    `;
+            <div><strong>Символ:</strong> <span id="current-symbol">${document.getElementById('symbolSelect').value}</span></div>
+            <div><strong>Таймфрейм:</strong> <span id="current-timeframe">${document.getElementById('timeframeSelect').value}</span></div>
+            <div><strong>Тип данных:</strong> <span id="current-data-type">${dataTypeName}</span></div>
+            <div><strong>Период анализа:</strong> <span id="current-training-days">${analysisInfo.training_days} дней</span></div>
+            <div><strong>Тип анализа:</strong> <span id="current-analysis-type">${getAnalysisTypeName(currentAnalysisType)}</span></div>
+            <div><strong>Тип контракта:</strong> <span id="current-futures-type">${getFuturesTypeName(currentFuturesType)}</span></div>
+            <div><strong>Обновлено:</strong> <span id="last-update-time">${new Date().toLocaleTimeString()}</span></div>
+        `;
     }
 
     // Обновление цен и анализа
@@ -1295,7 +1300,7 @@
         const analysisType = currentAnalysisType;
 
         // Спот анализ
-        if (analysisType === 'spot' || analysisType === 'both') {
+        if (analysisType === 'spot') {
             // Собственное движение
             const intrinsicElement = document.getElementById('eth-intrinsic-move');
             if (intrinsicElement && technical.spot_intrinsic !== undefined) {
@@ -1326,7 +1331,7 @@
         }
 
         // Фьючерс анализ
-        if (analysisType === 'futures' || analysisType === 'both') {
+        if (analysisType === 'futures') {
             // Собственное движение фьючерсов
             const futuresIntrinsicElement = document.getElementById('eth-futures-intrinsic-move');
             if (futuresIntrinsicElement && technical.futures_intrinsic !== undefined) {
@@ -1370,7 +1375,7 @@
         let summary = '';
         const analysisType = currentAnalysisType;
 
-        if (analysisType === 'spot' || analysisType === 'both') {
+        if (analysisType === 'spot') {
             const intrinsic = technical.spot_intrinsic || 0;
             const btcInfluence = technical.spot_btc_influence || 0;
             const ethPower = technical.spot_eth_own || 0;
@@ -1406,15 +1411,6 @@
             }
         }
 
-        if (analysisType === 'both' && technical.futures_intrinsic !== undefined) {
-            const spotIntrinsic = technical.spot_intrinsic || 0;
-            const futuresIntrinsic = technical.futures_intrinsic || 0;
-
-            if (Math.abs(spotIntrinsic - futuresIntrinsic) > 1.0) {
-                summary += ` | Futures: ${futuresIntrinsic >= 0 ? '+' : ''}${futuresIntrinsic.toFixed(1)}%`;
-            }
-        }
-
         summaryElement.textContent = summary;
     }
 
@@ -1425,12 +1421,7 @@
 
             const days = document.getElementById('intrinsicPeriodSelect').value;
 
-            let dataType = 'spot';
-            if (currentAnalysisType === 'futures') {
-                dataType = 'futures';
-            } else if (currentAnalysisType === 'both') {
-                dataType = 'spot';
-            }
+            const dataType = getDataTypeForSymbol();
 
             debugLog(`📈 Loading intrinsic movement chart for ${days} days, data type: ${dataType}`);
 
@@ -1589,15 +1580,15 @@
             ((summary.negative_points / summary.total_points) * 100).toFixed(1) : 0;
 
         summaryElement.innerHTML = `
-    <strong>📈 Статистика за ${days} дней (${dataType === 'spot' ? 'Spot' : 'Futures'}):</strong><br>
-    Точек данных: ${summary.total_points} |
-    Среднее движение: <span class="${summary.avg_movement >= 0 ? 'up' : 'down'}">${summary.avg_movement.toFixed(3)}%</span> |
-    Макс: <span class="up">+${summary.max_movement.toFixed(2)}%</span> |
-    Мин: <span class="down">${summary.min_movement.toFixed(2)}%</span><br>
-    Положительных: <span class="up">${summary.positive_points} (${positivePct}%)</span> |
-    Отрицательных: <span class="down">${summary.negative_points} (${negativePct}%)</span> |
-    Сильных движений: <span class="up">${summary.strong_positive}</span>↑ / <span class="down">${summary.strong_negative}</span>↓
-`;
+            <strong>📈 Статистика за ${days} дней (${dataType === 'spot' ? 'Spot' : 'Futures'}):</strong><br>
+            Точек данных: ${summary.total_points} |
+            Среднее движение: <span class="${summary.avg_movement >= 0 ? 'up' : 'down'}">${summary.avg_movement.toFixed(3)}%</span> |
+            Макс: <span class="up">+${summary.max_movement.toFixed(2)}%</span> |
+            Мин: <span class="down">${summary.min_movement.toFixed(2)}%</span><br>
+            Положительных: <span class="up">${summary.positive_points} (${positivePct}%)</span> |
+            Отрицательных: <span class="down">${summary.negative_points} (${negativePct}%)</span> |
+            Сильных движений: <span class="up">${summary.strong_positive}</span>↑ / <span class="down">${summary.strong_negative}</span>↓
+        `;
     }
 
     // Управление автообновлением
@@ -1608,7 +1599,7 @@
         autoUpdateInterval = setInterval(updatePrices, UPDATE_CONFIG.PRICES);
         chartUpdateInterval = setInterval(() => loadChartData(false), UPDATE_CONFIG.CHART);
 
-        const autoUpdateBtn = document.querySelector('.btn-success');
+        const autoUpdateBtn = document.getElementById('autoUpdateBtn');
         autoUpdateBtn.textContent = '⏹️ Остановить автообновление';
         autoUpdateBtn.className = 'btn-danger';
         showStatus('🚀 АВТООБНОВЛЕНИЕ ВКЛЮЧЕНО!', 'success');
@@ -1620,7 +1611,7 @@
         if (autoUpdateInterval) clearInterval(autoUpdateInterval);
         if (chartUpdateInterval) clearInterval(chartUpdateInterval);
 
-        const autoUpdateBtn = document.querySelector('.btn-danger');
+        const autoUpdateBtn = document.getElementById('autoUpdateBtn');
         if (autoUpdateBtn) {
             autoUpdateBtn.textContent = '▶️ Включить автообновление';
             autoUpdateBtn.className = 'btn-success';
@@ -1644,12 +1635,15 @@
         updateSymbolOptions();
         updateInterfaceForAnalysisType();
 
-        // Загружаем алерты пользователя
-        await loadAlerts();
+        // Проверяем статус аутентификации и загружаем алерты
+        await checkAuthStatus();
 
+        // Загружаем все данные
         await loadChartData();
         await updatePrices();
         await loadIntrinsicChart();
+
+        // Запускаем автообновление
         startAutoUpdate();
         showStatus('✅ Приложение готово!', 'success');
     });
@@ -1664,9 +1658,9 @@
     document.getElementById('intrinsicPeriodSelect').addEventListener('change', loadIntrinsicChart);
 
     // Обработчики для кнопок
-    document.querySelector('.btn-primary').addEventListener('click', () => loadChartData(true));
-    document.querySelector('.btn-success').addEventListener('click', toggleAutoUpdate);
-    document.querySelector('.btn-warning').addEventListener('click', forceRefreshAll);
+    document.getElementById('refreshChartBtn').addEventListener('click', () => loadChartData(true));
+    document.getElementById('autoUpdateBtn').addEventListener('click', toggleAutoUpdate);
+    document.getElementById('forceRefreshBtn').addEventListener('click', forceRefreshAll);
 
     // Обработчики для алертов
     document.getElementById('createAlertBtn').addEventListener('click', createAlert);

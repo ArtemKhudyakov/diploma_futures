@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.utils import timezone
+
 
 class PriceHistory(models.Model):
     CATEGORY_CHOICES = [
@@ -16,7 +18,7 @@ class PriceHistory(models.Model):
 
     symbol = models.CharField(max_length=20, choices=SYMBOL_CHOICES)
     category = models.CharField(max_length=10, choices=CATEGORY_CHOICES)
-    timestamp = models.DateTimeField()  # Время свечи
+    timestamp = models.DateTimeField()
     open_price = models.FloatField()
     high_price = models.FloatField()
     low_price = models.FloatField()
@@ -49,7 +51,7 @@ class AnalysisResult(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     eth_spot_price = models.FloatField()
     btc_spot_price = models.FloatField()
-    spot_intrinsic_move = models.FloatField()  # Собственное движение в %
+    spot_intrinsic_move = models.FloatField()
     eth_futures_price = models.FloatField()
     btc_futures_price = models.FloatField()
     futures_intrinsic_move = models.FloatField()
@@ -95,3 +97,23 @@ class PriceAlert(models.Model):
             return current_price >= self.target_price
         else:  # below
             return current_price <= self.target_price
+
+    def save(self, *args, **kwargs):
+        # Автоматическая проверка при сохранении
+        if self.status == 'active':
+            from screener.services.bybit_api import BybitAPI
+            api = BybitAPI(testnet=False)
+
+            current_prices = api.get_correct_prices()
+            current_price = None
+
+            if self.symbol == 'ETHUSDT':
+                current_price = current_prices.get('eth_spot')
+            elif self.symbol == 'BTCUSDT':
+                current_price = current_prices.get('btc_spot')
+
+            if current_price and self.check_condition(current_price):
+                self.status = 'triggered'
+                self.triggered_at = timezone.now()
+
+        super().save(*args, **kwargs)
