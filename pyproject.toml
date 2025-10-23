@@ -12,7 +12,10 @@ dependencies = [
     "django-phonenumber-field (>=8.3.0,<9.0.0)",
     "drf-yasg (>=1.21.11,<2.0.0)",
     "pybit (>=5.12.0,<6.0.0)",
-    "websocket-client (>=1.9.0,<2.0.0)"
+    "websocket-client (>=1.9.0,<2.0.0)",
+    "psycopg2-binary (>=2.9.11,<3.0.0)",
+    "gunicorn (>=23.0.0,<24.0.0)",
+    "whitenoise (>=6.11.0,<7.0.0)"
 ]
 
 
@@ -30,7 +33,6 @@ black = "^25.9.0"
 [tool.poetry.group.dev.dependencies]
 pillow = "^11.3.0"
 dotenv = "^0.9.9"
-psycopg2 = "^2.9.10"
 autopep8 = "^2.3.2"
 phonenumbers = "^9.0.15"
 ipython = "^9.6.0"

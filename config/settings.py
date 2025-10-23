@@ -39,6 +39,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -234,3 +235,44 @@ REDOC_SETTINGS = {
     "LAZY_RENDERING": False,
     "HIDE_HOSTNAME": False,
 }
+
+if os.environ.get('DOCKER_ENV'):
+    DEBUG = False
+
+    # Настройки базы данных для Docker
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_POSTGRES_NAME"),
+            "USER": os.getenv("POSTGRES_USER"),
+            "PASSWORD": os.getenv("DB_POSTGRES_PASSWORD"),
+            "HOST": os.getenv("HOST", "db"),
+            "PORT": os.getenv("PORT", "5432"),
+        }
+    }
+
+    # Настройки Redis для Docker
+    CELERY_BROKER_URL = "redis://redis:6379/0"
+    CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": "redis://redis:6379/2",
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+            "KEY_PREFIX": "mail_service_",
+            "TIMEOUT": 60 * 15,
+        }
+    }
+
+    # Статические файлы
+    STATIC_ROOT = '/app/staticfiles'
+    MEDIA_ROOT = '/app/media'
+
+    # Настройки безопасности для production
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+    CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
