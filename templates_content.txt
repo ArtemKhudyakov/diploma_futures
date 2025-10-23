@@ -1,0 +1,318 @@
+﻿================================================================================
+: D:\python\diploma\diploma_futures\templates\base.html
+================================================================================
+
+0001: <!DOCTYPE html>
+0002: <html lang="ru">
+0003: <head>
+0004:     <meta charset="UTF-8">
+0005:     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+0006:     <title>{% block title %}To Ze Moon - Crypto Analysis{% endblock %}</title>
+0007:     {% load static %}
+0008:     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+0009:     <link href="{% static 'css/style.css' %}" rel="stylesheet">
+0010:     <style>
+0011:         body {
+0012:             background: #0f0f23;
+0013:             color: white;
+0014:             font-family: 'Arial', sans-serif;
+0015:         }
+0016:         .navbar {
+0017:             background: #1a1a2e !important;
+0018:             border-bottom: 2px solid #007bff;
+0019:         }
+0020:         .navbar-brand {
+0021:             font-weight: bold;
+0022:             background: linear-gradient(45deg, #007bff, #00C853);
+0023:             -webkit-background-clip: text;
+0024:             -webkit-text-fill-color: transparent;
+0025:             background-clip: text;
+0026:         }
+0027:     </style>
+0028: </head>
+0029: <body>
+0030:     {% include "includes/header.html" %}
+0031:     
+0032:     <main class="container mt-4">
+0033:         {% if messages %}
+0034:         <div class="messages">
+0035:             {% for message in messages %}
+0036:             <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+0037:                 {{ message }}
+0038:                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+0039:             </div>
+0040:             {% endfor %}
+0041:         </div>
+0042:         {% endif %}
+0043:         
+0044:         {% block content %}
+0045:         {% endblock %}
+0046:     </main>
+0047:     
+0048:     {% include "includes/footer.html" %}
+0049:     
+0050:     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+0051:     <script src="{% static 'js/scripts.js' %}"></script>
+0052: </body>
+0053: </html>
+
+
+================================================================================
+: D:\python\diploma\diploma_futures\templates\home.html
+================================================================================
+
+0001: {% extends "base.html" %}
+0002: {% block title %}Главная - To Ze Moon{% endblock %}
+0003: 
+0004: {% block content %}
+0005: <div class="container mt-5">
+0006:     <!-- Hero Section -->
+0007:     <div class="text-center mb-5">
+0008:         <h1 class="display-4 fw-bold mb-3" style="background: linear-gradient(45deg, #007bff, #00C853); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+0009:             🚀 To Ze Moon
+0010:         </h1>
+0011:         <h2 class="h3 text-warning mb-3">ТуЗеМун - Анализ крипторынка</h2>
+0012:         <p class="lead text-light">Продвинутый анализ движения цен ETH/BTC с определением собственной динамики</p>
+0013:     </div>
+0014: 
+0015:     <!-- Main Action Card -->
+0016:     <div class="card border-0 shadow-lg mb-5" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%); border: 2px solid #00C853 !important; position: relative; overflow: hidden;">
+0017:     <!-- Анимированный фон -->
+0018:     <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at center, rgba(0, 200, 83, 0.1) 0%, transparent 70%);"></div>
+0019:     
+0020:     <div class="card-body p-5 text-center" style="position: relative; z-index: 2;">
+0021:         <!-- Большая анимированная ракета -->
+0022:         <div class="mb-4" style="animation: float 3s ease-in-out infinite;">
+0023:             <div style="font-size: 5rem; margin-bottom: 1rem; filter: drop-shadow(0 0 10px rgba(0, 200, 83, 0.5));">🚀</div>
+0024:         </div>
+0025:         
+0026:         <!-- Главный заголовок -->
+0027:         <h2 class="card-title mb-3 display-4 fw-bold text-white" 
+0028:             style="text-shadow: 0 0 20px rgba(0, 200, 83, 0.7), 0 0 30px rgba(0, 123, 255, 0.5);">
+0029:             ЗАПУСТИТЕ РЕАЛЬНЫЙ АНАЛИЗ КРИПТОРЫНКА
+0030:         </h2>
+0031:         
+0032:         <!-- Подзаголовок -->
+0033:         <p class="card-text mb-4 text-light fs-4">
+0034:             <strong>To the moon! 🚀🌙</strong>
+0035:         </p>
+0036:         
+0037:         <p class="card-text mb-4 text-light fs-5">
+0038:             Автоматическое отслеживание ETH/BTC в реальном времени<br>
+0039:             <strong class="text-warning">Анализ собственного движения + автообновление графиков</strong>
+0040:         </p>
+0041:         
+0042:         <!-- Кнопки действий -->
+0043:         <div class="d-flex justify-content-center gap-4 flex-wrap mt-4">
+0044:             <a href="{% url 'screener:realtime' %}" class="btn btn-success btn-lg px-5 py-3 fw-bold fs-4" 
+0045:                style="background: linear-gradient(45deg, #00C853, #007bff); border: none; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.4); min-width: 250px;">
+0046:                 🚀 ЗАПУСТИТЬ СКРИНЕР
+0047:             </a>
+0048:             
+0049:             {% if not user.is_authenticated %}
+0050:             <div class="d-flex gap-3 flex-wrap justify-content-center">
+0051:                 <a href="{% url 'users:register' %}" class="btn btn-primary btn-lg px-4 py-3 fw-bold fs-5">
+0052:                     📝 РЕГИСТРАЦИЯ
+0053:                 </a>
+0054:                 <a href="{% url 'users:login' %}" class="btn btn-outline-light btn-lg px-4 py-3 fw-bold fs-5">
+0055:                     🔑 ВХОД
+0056:                 </a>
+0057:             </div>
+0058:             {% endif %}
+0059:         </div>
+0060:         
+0061:         <!-- Дополнительная информация -->
+0062:         <div class="mt-5 pt-3 border-top border-success">
+0063:             <div class="row g-3">
+0064:                 <div class="col-md-4">
+0065:                     <div class="text-success">
+0066:                         <strong>📈 Real-time</strong>
+0067:                         <div class="text-light small">Данные каждые 2 сек</div>
+0068:                     </div>
+0069:                 </div>
+0070:                 <div class="col-md-4">
+0071:                     <div class="text-warning">
+0072:                         <strong>🎯 Анализ ETH/BTC</strong>
+0073:                         <div class="text-light small">Собственное движение</div>
+0074:                     </div>
+0075:                 </div>
+0076:                 <div class="col-md-4">
+0077:                     <div class="text-info">
+0078:                         <strong>⚡ Автообновление</strong>
+0079:                         <div class="text-light small">Графики каждые 10 сек</div>
+0080:                     </div>
+0081:                 </div>
+0082:             </div>
+0083:         </div>
+0084:     </div>
+0085: </div>
+0086: 
+0087: <style>
+0088: @keyframes float {
+0089:     0%, 100% { transform: translateY(0px); }
+0090:     50% { transform: translateY(-10px); }
+0091: }
+0092: </style>
+0093:     <!-- Features Grid -->
+0094:     <div class="row g-4">
+0095:         <div class="col-md-4">
+0096:             <div class="card h-100 border-0" style="background: #1a1a2e;">
+0097:                 <div class="card-body text-center p-4">
+0098:                     <div class="mb-3" style="font-size: 2.5rem;">📊</div>
+0099:                     <h5 class="card-title text-success">Реальный анализ</h5>
+0100:                     <p class="card-text text-light">Актуальные данные с Bybit API, обновление каждые 2 секунды</p>
+0101:                 </div>
+0102:             </div>
+0103:         </div>
+0104:         <div class="col-md-4">
+0105:             <div class="card h-100 border-0" style="background: #1a1a2e;">
+0106:                 <div class="card-body text-center p-4">
+0107:                     <div class="mb-3" style="font-size: 2.5rem;">🎯</div>
+0108:                     <h5 class="card-title text-warning">Собственное движение</h5>
+0109:                     <p class="card-text text-light">Определение когда ETH движется независимо от BTC</p>
+0110:                 </div>
+0111:             </div>
+0112:         </div>
+0113:         <div class="col-md-4">
+0114:             <div class="card h-100 border-0" style="background: #1a1a2e;">
+0115:                 <div class="card-body text-center p-4">
+0116:                     <div class="mb-3" style="font-size: 2.5rem;">⚡</div>
+0117:                     <h5 class="card-title text-info">Автообновление</h5>
+0118:                     <p class="card-text text-light">Графики обновляются автоматически каждые 10 секунд</p>
+0119:                 </div>
+0120:             </div>
+0121:         </div>
+0122:     </div>
+0123: 
+0124:     <!-- Additional Info -->
+0125:     <div class="row mt-5">
+0126:         <div class="col-12">
+0127:             <div class="card border-0" style="background: #1a1a2e;">
+0128:                 <div class="card-body text-center">
+0129:                     <h4 class="mb-3">💡 Как это работает?</h4>
+0130:                     <p class="text-light mb-3">
+0131:                         Наш алгоритм анализирует исторические данные и определяет, насколько движение ETH<br>
+0132:                         обусловлено собственными факторами, а не просто следует за BTC
+0133:                     </p>
+0134:                     <div class="d-flex justify-content-center gap-4 flex-wrap">
+0135:                         <span class="badge bg-success">Spot цены</span>
+0136:                         <span class="badge bg-warning">Futures цены</span>
+0137:                         <span class="badge bg-info">Базис анализ</span>
+0138:                         <span class="badge bg-primary">Линейная регрессия</span>
+0139:                     </div>
+0140:                 </div>
+0141:             </div>
+0142:         </div>
+0143:     </div>
+0144: </div>
+0145: {% endblock %}
+
+
+================================================================================
+: D:\python\diploma\diploma_futures\templates\includes\footer.html
+================================================================================
+
+0001: <footer class="mt-5 py-4" style="background: #1a1a2e; border-top: 1px solid #007bff;">
+0002:     <div class="container">
+0003:         <div class="row">
+0004:             <div class="col-md-6">
+0005:                 <h5 class="text-warning">🚀 To Ze Moon</h5>
+0006:                 <p class="text-light mb-0">ТуЗеМун - Продвинутый анализ крипторынка</p>
+0007:                 <small class="text-muted">Определяем собственное движение ETH относительно BTC</small>
+0008:             </div>
+0009:             <div class="col-md-6 text-md-end">
+0010:                 <p class="text-light mb-0">&copy; 2025 To Ze Moon. All rights reserved.</p>
+0011:                 <small class="text-muted">To the moon! 🚀🌙</small>
+0012:             </div>
+0013:         </div>
+0014:     </div>
+0015: </footer>
+
+
+================================================================================
+: D:\python\diploma\diploma_futures\templates\includes\header.html
+================================================================================
+
+0001: <nav class="navbar navbar-expand-lg navbar-dark">
+0002:     <div class="container">
+0003:         <a class="navbar-brand fw-bold" href="/">
+0004:             🚀 To Ze Moon
+0005:         </a>
+0006:         <small class="text-warning ms-2">ТуЗеМун</small>
+0007: 
+0008:         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+0009:             <span class="navbar-toggler-icon"></span>
+0010:         </button>
+0011: 
+0012:         <div class="collapse navbar-collapse" id="navbarNav">
+0013:             <ul class="navbar-nav me-auto">
+0014:                 <li class="nav-item">
+0015:                     <a class="nav-link" href="/">Главная</a>
+0016:                 </li>
+0017:                 <li class="nav-item">
+0018:                     <a class="nav-link text-success" href="{% url 'screener:realtime' %}">
+0019:                         📊 Скринер
+0020:                     </a>
+0021:                 </li>
+0022:                 {% if user.is_authenticated %}
+0023:                     <li class="nav-item">
+0024:                         <a class="nav-link" href="#">📈 История</a>
+0025:                     </li>
+0026:                     <li class="nav-item">
+0027:                         <a class="nav-link" href="#">⚙️ Настройки</a>
+0028:                     </li>
+0029:                 {% endif %}
+0030:             </ul>
+0031: 
+0032:             <ul class="navbar-nav">
+0033:                 {% if user.is_authenticated %}
+0034:                     <li class="nav-item dropdown">
+0035:                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+0036:                             👤 {{ user.username }}
+0037:                             {% if user.role == 'manager' or user.is_staff %}
+0038:                                 <span class="badge bg-warning">Staff</span>
+0039:                             {% endif %}
+0040:                         </a>
+0041:                         <ul class="dropdown-menu dropdown-menu-dark">
+0042:                             <li>
+0043:                                 <a class="dropdown-item" href="{% url 'users:profile_edit' %}">
+0044:                                     ⚙️ Мой профиль
+0045:                                 </a>
+0046:                             </li>
+0047:                             {% if user.role == 'manager' or user.is_staff %}
+0048:                                 <li>
+0049:                                     <a class="dropdown-item" href="{% url 'users:user_list' %}">
+0050:                                         👥 Пользователи
+0051:                                     </a>
+0052:                                 </li>
+0053:                                 <li>
+0054:                                     <a class="dropdown-item" href="/admin/">
+0055:                                         ⚙️ Админка
+0056:                                     </a>
+0057:                                 </li>
+0058:                             {% endif %}
+0059:                             <li>
+0060:                                 <hr class="dropdown-divider">
+0061:                             </li>
+0062:                             <li>
+0063:                                 <form method="post" action="{% url 'users:logout' %}">
+0064:                                     {% csrf_token %}
+0065:                                     <button type="submit" class="dropdown-item">🚪 Выйти</button>
+0066:                                 </form>
+0067:                             </li>
+0068:                         </ul>
+0069:                     </li>
+0070:                 {% else %}
+0071:                     <li class="nav-item">
+0072:                         <a class="nav-link" href="{% url 'users:login' %}">Войти</a>
+0073:                     </li>
+0074:                     <li class="nav-item">
+0075:                         <a class="btn btn-primary ms-2" href="{% url 'users:register' %}" role="button">Регистрация</a>
+0076:                     </li>
+0077:                 {% endif %}
+0078:             </ul>
+0079:         </div>
+0080:     </div>
+0081: </nav>
+
+
