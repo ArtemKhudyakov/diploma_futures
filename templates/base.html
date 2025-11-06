@@ -3,10 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Future Futures - Инвестиции в будущее{% endblock %}</title>
+    <title>{% block title %}To Ze Moon - Crypto Analysis{% endblock %}</title>
     {% load static %}
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <style>
+        body {
+            background: #0f0f23;
+            color: white;
+            font-family: 'Arial', sans-serif;
+        }
+        .navbar {
+            background: #1a1a2e !important;
+            border-bottom: 2px solid #007bff;
+        }
+        .navbar-brand {
+            font-weight: bold;
+            background: linear-gradient(45deg, #007bff, #00C853);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
 </head>
 <body>
     {% include "includes/header.html" %}

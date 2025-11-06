@@ -81,7 +81,7 @@ class User(AbstractUser):
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
-        db_table = "user"
+        db_table = "users"
         permissions = [
             ("block_user", "Может блокировать пользователей"),
             ("disable_mailing", "Может отключать рассылки"),

@@ -3,10 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Future Futures - Инвестиции в будущее{% endblock %}</title>
+    <title>{% block title %}To Ze Moon - Crypto Analysis{% endblock %}</title>
     {% load static %}
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <style>
+        body {
+            background: #0f0f23;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        main {
+            flex: 1;
+        }
+
+        .navbar {
+            background: #1a1a2e !important;
+            border-bottom: 2px solid #007bff;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            background: linear-gradient(45deg, #007bff, #00C853);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 1.5rem;
+        }
+
+        .nav-link {
+            color: #ccc !important;
+            transition: color 0.3s;
+        }
+
+        .nav-link:hover {
+            color: #00C853 !important;
+        }
+
+        .card {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            border: none;
+        }
+
+        .btn-success {
+            background: #00C853;
+            border: none;
+        }
+
+        .form-control {
+            background: #2d2d44;
+            border: 1px solid #444;
+            color: white;
+        }
+
+        .form-control:focus {
+            background: #2d2d44;
+            border-color: #007bff;
+            color: white;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+    </style>
 </head>
 <body>
     {% include "includes/header.html" %}

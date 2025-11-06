@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Analysis - Auto Update</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            background: #0f0f23;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        select, button, input {
+            padding: 8px 12px;
+            background: #2d2d44;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .btn-primary {
+            background: #007bff;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            background: #2d2d44;
+            border-radius: 4px;
+            font-weight: bold;
+            border: 1px solid #444;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .charts-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .analysis-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .price {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .change {
+            font-size: 0.9em;
+        }
+
+        .up {
+            color: #00ff00;
+        }
+
+        .down {
+            color: #ff0000;
+        }
+
+        .chart-container {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #ccc;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #1a1a2e, #2d2d44);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #007bff;
+        }
+
+        .summary-text {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .analysis-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .analysis-label {
+            font-size: 0.8em;
+            color: #ccc;
+            margin: 0;
+        }
+
+        .analysis-mode-indicator {
+            background: linear-gradient(135deg, #1a1a2e, #2d2d44);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .analysis-mode-text {
+            font-weight: bold;
+            color: #00ff00;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .info-card {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .info-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        /* СТИЛИ ДЛЯ АЛЕРТОВ */
+        .alerts-section {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            margin-bottom: 20px;
+        }
+
+        .alerts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .alert-form {
+            background: #2d2d44;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #444;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .alerts-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            background: #2d2d44;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .alert-item.triggered {
+            border-left-color: #dc3545;
+            background: #3d2d2d;
+        }
+
+        .alert-item.cancelled {
+            border-left-color: #6c757d;
+            opacity: 0.7;
+        }
+
+        .alert-info {
+            flex: 1;
+        }
+
+        .alert-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .alert-details {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .alert-status {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: #444;
+        }
+
+        .alert-status.active {
+            background: #28a745;
+        }
+
+        .alert-status.triggered {
+            background: #dc3545;
+        }
+
+        .alert-status.cancelled {
+            background: #6c757d;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        /* Адаптивность для мобильных */
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .analysis-column {
+                order: -1;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .login-required {
+            background: #dc3545;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🚀 To Ze Moon - Realtime Crypto Analysis</h1>
+        <p>Автоматическое обновление цен каждые 2 секунды и графика каждые 10 секунд</p>
+    </div>
+
+    <!-- СЕКЦИЯ АЛЕРТОВ -->
+    <div class="alerts-section">
+        <div class="alerts-header">
+            <h3>🔔 Управление алертами</h3>
+            <button class="btn-info" id="toggleAlertFormBtn">
+                📝 Создать новый алерт
+            </button>
+        </div>
+
+        <!-- ФОРМА СОЗДАНИЯ АЛЕРТА -->
+        <div class="alert-form" id="alertForm" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Название алерта:</label>
+                    <input type="text" id="alertName" placeholder="ETH достиг 4000" maxlength="100">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Символ:</label>
+                    <select id="alertSymbol">
+                        <option value="ETHUSDT">ETH/USDT</option>
+                        <option value="BTCUSDT">BTC/USDT</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Условие:</label>
+                    <select id="alertCondition">
+                        <option value="above">Цена выше</option>
+                        <option value="below">Цена ниже</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Целевая цена ($):</label>
+                    <input type="number" id="alertTargetPrice" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group" style="align-items: flex-end;">
+                    <button class="btn-success" id="createAlertBtn">✅ Создать алерт</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- СПИСОК АЛЕРТОВ -->
+        <div id="alertsAuthMessage" class="login-required" style="display: none;">
+            🔐 Для работы с алертами требуется авторизация
+        </div>
+        <div class="alerts-list" id="alertsList">
+            <div class="loading">Загрузка алертов...</div>
+        </div>
+    </div>
+
+    <!-- ОСНОВНЫЕ КОНТРОЛЫ -->
+    <div class="controls">
+        <div class="control-group">
+            <label>Тип анализа:</label>
+            <select id="analysisTypeSelect">
+                <option value="spot" selected>Spot анализ</option>
+                <option value="futures">Futures анализ</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Контракт:</label>
+            <select id="futuresTypeSelect">
+                <option value="linear" selected>Linear (USDT)</option>
+                <option value="inverse">Inverse (COIN-M)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Символ:</label>
+            <select id="symbolSelect">
+                <option value="ETHUSDT">ETH/USDT</option>
+                <option value="BTCUSDT">BTC/USDT</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Таймфрейм:</label>
+            <select id="timeframeSelect">
+                <option value="1m">1 Minute</option>
+                <option value="5m">5 Minutes</option>
+                <option value="15m">15 Minutes</option>
+                <option value="30m">30 Minutes</option>
+                <option value="1h" selected>1 Hour</option>
+                <option value="4h">4 Hours</option>
+                <option value="1d">1 Day</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Свечей:</label>
+            <select id="candleLimit">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="200">200</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Период анализа:</label>
+            <select id="trainingDaysSelect">
+                <option value="1">1 день</option>
+                <option value="3">3 дня</option>
+                <option value="7" selected>7 дней</option>
+                <option value="30">1 месяц</option>
+            </select>
+        </div>
+
+        <button class="btn-primary" id="refreshChartBtn">🔄 Обновить график</button>
+        <button class="btn-success" id="autoUpdateBtn">▶️ Включить автообновление</button>
+        <button class="btn-warning" id="forceRefreshBtn">🎯 Принудительное обновление</button>
+    </div>
+
+    <!-- Индикатор режима анализа -->
+    <div class="analysis-mode-indicator">
+        <span class="analysis-mode-text" id="analysisModeText">Режим: Spot анализ</span>
+    </div>
+
+    <div id="status" class="status">Готов к работе</div>
+
+    <!-- ОСНОВНОЙ LAYOUT -->
+    <div class="main-layout">
+
+        <!-- ЛЕВАЯ КОЛОНКА - ГРАФИКИ -->
+        <div class="charts-column">
+
+            <!-- ГРАФИК ЦЕН -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 id="priceChartTitle">📊 График цен - Spot</h3>
+                </div>
+                <div id="priceChart" class="loading">
+                    Загрузка графика цен...
+                </div>
+            </div>
+
+            <!-- ГРАФИК СОБСТВЕННОГО ДВИЖЕНИЯ -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 id="intrinsicChartTitle">📊 Историческое собственное движение ETH Spot относительно BTC Spot</h3>
+                    <div class="chart-controls">
+                        <div class="control-group">
+                            <label>Период графика:</label>
+                            <select id="intrinsicPeriodSelect">
+                                <option value="3">3 дня</option>
+                                <option value="7" selected>7 дней</option>
+                                <option value="14">14 дней</option>
+                                <option value="30">30 дней</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="intrinsicChart" class="loading">
+                    Загрузка графика собственного движения...
+                </div>
+                <div id="intrinsicSummary" class="chart-summary">
+                    Статистика: загрузка...
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ПРАВАЯ КОЛОНКА - АНАЛИЗ И ИНФОРМАЦИЯ -->
+        <div class="analysis-column">
+
+            <!-- ОБЩИЙ ВЫВОД -->
+            <div class="summary-card">
+                <p class="summary-text" id="summaryText">Загрузка анализа...</p>
+            </div>
+
+            <!-- ЦЕНЫ -->
+            <div class="card">
+                <h3>💰 Текущие цены</h3>
+                <div class="dashboard">
+                    <div>
+                        <strong>ETH Spot:</strong>
+                        <span id="eth-spot-price" class="price">-</span>
+                        <span id="eth-spot-change" class="change">-</span>
+                    </div>
+                    <div>
+                        <strong>BTC Spot:</strong>
+                        <span id="btc-spot-price" class="price">-</span>
+                        <span id="btc-spot-change" class="change">-</span>
+                    </div>
+                    <div>
+                        <strong>ETH Futures:</strong>
+                        <span id="eth-futures-price" class="price">-</span>
+                        <span id="eth-basis" class="change">Basis: -</span>
+                    </div>
+                    <div>
+                        <strong>BTC Futures:</strong>
+                        <span id="btc-futures-price" class="price">-</span>
+                        <span id="btc-basis" class="change">Basis: -</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- АНАЛИЗ SPOT -->
+            <div class="dashboard" id="spotAnalysisDashboard">
+                <div class="card">
+                    <h3>📊 Spot анализ ETH</h3>
+                    <div class="dashboard">
+                        <div>
+                            <strong>Собственное движение:</strong>
+                            <div id="eth-intrinsic-move" class="analysis-value">-</div>
+                            <div class="analysis-label">На сколько % ETH движется самостоятельно</div>
+                        </div>
+                        <div>
+                            <strong>Влияние BTC:</strong>
+                            <div id="btc-influence" class="analysis-value">-</div>
+                            <div class="analysis-label">Процент движения ETH за счет BTC</div>
+                        </div>
+                        <div>
+                            <strong>Базис ETH:</strong>
+                            <div id="eth-basis-value" class="analysis-value">-</div>
+                            <div class="analysis-label">Разница фьючерс/спот</div>
+                        </div>
+                        <div>
+                            <strong>Сила ETH:</strong>
+                            <div id="eth-own-power" class="analysis-value">-</div>
+                            <div class="analysis-label">Собственная сила ETH</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- АНАЛИЗ FUTURES -->
+            <div class="dashboard" id="futuresAnalysisDashboard" style="display: none;">
+                <div class="card">
+                    <h3>📈 Futures анализ ETH</h3>
+                    <div class="dashboard">
+                        <div>
+                            <strong>Собственное движение:</strong>
+                            <div id="eth-futures-intrinsic-move" class="analysis-value">-</div>
+                            <div class="analysis-label">На сколько % ETH Futures движется самостоятельно</div>
+                        </div>
+                        <div>
+                            <strong>Влияние BTC Futures:</strong>
+                            <div id="btc-futures-influence" class="analysis-value">-</div>
+                            <div class="analysis-label">Процент движения ETH Futures за счет BTC Futures</div>
+                        </div>
+                        <div>
+                            <strong>Базис ETH Futures:</strong>
+                            <div id="eth-futures-basis-value" class="analysis-value">-</div>
+                            <div class="analysis-label">Разница фьючерс/спот</div>
+                        </div>
+                        <div>
+                            <strong>Сила ETH Futures:</strong>
+                            <div id="eth-futures-own-power" class="analysis-value">-</div>
+                            <div class="analysis-label">Собственная сила ETH Futures</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ИНФОРМАЦИЯ -->
+            <div class="info-card">
+                <h3>ℹ️ Информация о данных</h3>
+                <div id="data-info">
+                    <div><strong>Символ:</strong> <span id="current-symbol">-</span></div>
+                    <div><strong>Таймфрейм:</strong> <span id="current-timeframe">-</span></div>
+                    <div><strong>Тип данных:</strong> <span id="current-data-type">-</span></div>
+                    <div><strong>Период анализа:</strong> <span id="current-training-days">-</span></div>
+                    <div><strong>Тип анализа:</strong> <span id="current-analysis-type">-</span></div>
+                    <div><strong>Тип контракта:</strong> <span id="current-futures-type">-</span></div>
+                    <div><strong>Обновлено:</strong> <span id="last-update-time">-</span></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // Глобальные переменные
+    let autoUpdateInterval = null;
+    let chartUpdateInterval = null;
+    let isAutoUpdateActive = false;
+    let lastPrices = {};
+    let currentChartData = null;
+    let currentAnalysisType = 'spot';
+    let currentFuturesType = 'linear';
+    let isUserAuthenticated = false;
+
+    // Конфигурация интервалов
+    const UPDATE_CONFIG = {
+        PRICES: 2000,
+        CHART: 10000,
+    };
+
+    // Функция для получения CSRF токена
+    function getCSRFToken() {
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Настройка axios для включения CSRF токена
+    axios.defaults.xsrfCookieName = 'csrftoken';
+    axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+    axios.defaults.withCredentials = true;
+
+    // Функция отладки
+    function debugLog(message, data = null) {
+        console.log(`[DEBUG ${new Date().toLocaleTimeString()}] ${message}`, data || '');
+    }
+
+    // Показать статус
+    function showStatus(message, type = 'info') {
+        const statusElement = document.getElementById('status');
+        const time = new Date().toLocaleTimeString();
+        statusElement.textContent = `[${time}] ${message}`;
+        statusElement.style.color = type === 'error' ? '#ff4444' :
+            type === 'success' ? '#00ff00' :
+                type === 'warning' ? '#ffc107' : 'white';
+    }
+
+    // ФУНКЦИИ ДЛЯ РАБОТЫ С АЛЕРТАМИ
+    function toggleAlertForm() {
+        if (!isUserAuthenticated) {
+            showStatus('❌ Для создания алертов требуется авторизация', 'error');
+            return;
+        }
+
+        const form = document.getElementById('alertForm');
+        const btn = document.getElementById('toggleAlertFormBtn');
+
+        if (form.style.display === 'none') {
+            form.style.display = 'block';
+            btn.textContent = '❌ Отмена';
+        } else {
+            form.style.display = 'none';
+            btn.textContent = '📝 Создать новый алерт';
+            clearAlertForm();
+        }
+    }
+
+    function clearAlertForm() {
+        document.getElementById('alertName').value = '';
+        document.getElementById('alertTargetPrice').value = '';
+        document.getElementById('alertSymbol').value = 'ETHUSDT';
+        document.getElementById('alertCondition').value = 'above';
+    }
+
+    async function createAlert() {
+        try {
+            if (!isUserAuthenticated) {
+                showStatus('❌ Для создания алертов требуется авторизация', 'error');
+                return;
+            }
+
+            const alertData = {
+                name: document.getElementById('alertName').value.trim(),
+                symbol: document.getElementById('alertSymbol').value,
+                condition: document.getElementById('alertCondition').value,
+                target_price: parseFloat(document.getElementById('alertTargetPrice').value)
+            };
+
+            // Простая валидация
+            if (!alertData.name) {
+                showStatus('❌ Введите название алерта', 'error');
+                return;
+            }
+
+            if (!alertData.target_price || alertData.target_price <= 0) {
+                showStatus('❌ Введите корректную цену', 'error');
+                return;
+            }
+
+            // Отправляем на бэкенд
+            const csrfToken = getCSRFToken();
+            const response = await axios.post('/screener/api/alerts/create/', alertData, {
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.data.success) {
+                showStatus('✅ Алерт создан!', 'success');
+                toggleAlertForm();
+                loadAlerts();
+            } else {
+                showStatus('❌ Ошибка: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            if (error.response && error.response.status === 403) {
+                showStatus('❌ Для создания алертов требуется авторизация', 'error');
+                checkAuthStatus();
+            } else {
+                showStatus('❌ Ошибка создания: ' + error.message, 'error');
+            }
+        }
+    }
+
+    async function loadAlerts() {
+        try {
+            const response = await axios.get('/screener/api/alerts/list/');
+
+            if (response.data.success) {
+                isUserAuthenticated = true;
+                document.getElementById('alertsAuthMessage').style.display = 'none';
+                renderAlertsList(response.data.alerts);
+            } else {
+                document.getElementById('alertsList').innerHTML = '<div class="loading">Ошибка загрузки</div>';
+            }
+        } catch (error) {
+            if (error.response && error.response.status === 403) {
+                isUserAuthenticated = false;
+                document.getElementById('alertsAuthMessage').style.display = 'block';
+                document.getElementById('alertsList').innerHTML = '<div class="loading">Авторизуйтесь для просмотра алертов</div>';
+            } else {
+                document.getElementById('alertsList').innerHTML = '<div class="loading">Ошибка загрузки алертов</div>';
+            }
+        }
+    }
+
+    function renderAlertsList(alerts) {
+        const alertsList = document.getElementById('alertsList');
+
+        if (!alerts || alerts.length === 0) {
+            alertsList.innerHTML = '<div class="loading">Нет алертов</div>';
+            return;
+        }
+
+        alertsList.innerHTML = alerts.map(alert => `
+            <div class="alert-item ${alert.status}">
+                <div class="alert-info">
+                    <div class="alert-name">${alert.name}</div>
+                    <div class="alert-details">
+                        ${alert.symbol} ${alert.condition === 'above' ? '>' : '<'} $${alert.target_price}
+                    </div>
+                    <div class="alert-details">
+                        Создан: ${alert.created_at}
+                        ${alert.triggered_at ? ` | Сработал: ${alert.triggered_at}` : ''}
+                    </div>
+                </div>
+                <div class="alert-actions">
+                    <span class="alert-status ${alert.status}">
+                        ${alert.status === 'active' ? 'Активен' : alert.status === 'triggered' ? 'Сработал' : 'Отменен'}
+                    </span>
+                    ${alert.status === 'active' ?
+                        `<button class="delete-btn" onclick="deleteAlert(${alert.id})">🗑️</button>` : ''
+                    }
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function deleteAlert(alertId) {
+        if (!confirm('Удалить этот алерт?')) return;
+
+        try {
+            const csrfToken = getCSRFToken();
+            const response = await axios.delete(`/screener/api/alerts/delete/${alertId}/`, {
+                headers: {'X-CSRFToken': csrfToken}
+            });
+
+            if (response.data.success) {
+                showStatus('✅ Алерт удален', 'success');
+                loadAlerts();
+            } else {
+                showStatus('❌ Ошибка удаления', 'error');
+            }
+        } catch (error) {
+            showStatus('❌ Ошибка: ' + error.message, 'error');
+        }
+    }
+
+    async function checkAlerts(currentPrices) {
+        if (!isUserAuthenticated) return;
+
+        try {
+            const response = await axios.post('/screener/api/alerts/check/', {
+                prices: currentPrices
+            });
+
+            if (response.data.success && response.data.triggered_alerts.length > 0) {
+                response.data.triggered_alerts.forEach(alert => {
+                    showAlertNotification(alert);
+                });
+                loadAlerts();
+            }
+        } catch (error) {
+            console.error('Ошибка проверки алертов:', error);
+        }
+    }
+
+    function showAlertNotification(alert) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+
+        notification.innerHTML = `
+            <strong>🔔 Алерт сработал!</strong><br>
+            ${alert.name}<br>
+            <small>${alert.symbol} ${alert.condition === 'above' ? '>' : '<'} $${alert.target_price}</small><br>
+            <small>Текущая цена: $${alert.current_price.toFixed(2)}</small>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+
+    // Проверка статуса аутентификации
+    async function checkAuthStatus() {
+        try {
+            await loadAlerts();
+        } catch (error) {
+            isUserAuthenticated = false;
+        }
+    }
+
+    // Получение читаемого имени типа анализа
+    function getAnalysisTypeName(type) {
+        const names = {
+            'spot': 'Spot анализ',
+            'futures': 'Futures анализ'
+        };
+        return names[type] || type;
+    }
+
+    // Получение читаемого имени типа фьючерса
+    function getFuturesTypeName(type) {
+        const names = {
+            'linear': 'Linear (USDT)',
+            'inverse': 'Inverse (COIN-M)'
+        };
+        return names[type] || type;
+    }
+
+    // Получение типа данных для символа
+    function getDataTypeForSymbol() {
+        return document.getElementById('analysisTypeSelect').value;
+    }
+
+    // Обновление опций символов в зависимости от типа анализа
+    function updateSymbolOptions() {
+        const symbolSelect = document.getElementById('symbolSelect');
+        const analysisType = document.getElementById('analysisTypeSelect').value;
+
+        symbolSelect.innerHTML = '';
+
+        const options = [
+            {value: 'ETHUSDT', text: 'ETH/USDT'},
+            {value: 'BTCUSDT', text: 'BTC/USDT'}
+        ];
+
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option.value;
+            optionElement.textContent = option.text;
+            symbolSelect.appendChild(optionElement);
+        });
+
+        updateChartTitle();
+    }
+
+    // Обновление заголовка графика
+    function updateChartTitle() {
+        const priceChartTitle = document.getElementById('priceChartTitle');
+        const analysisType = document.getElementById('analysisTypeSelect').value;
+
+        if (analysisType === 'spot') {
+            priceChartTitle.textContent = '📊 График цен - Spot';
+        } else {
+            priceChartTitle.textContent = '📈 График цен - Futures';
+        }
+    }
+
+    // Смена типа анализа
+    function changeAnalysisType() {
+        currentAnalysisType = document.getElementById('analysisTypeSelect').value;
+        currentFuturesType = document.getElementById('futuresTypeSelect').value;
+
+        debugLog(`Changing analysis type to: ${currentAnalysisType}, futures: ${currentFuturesType}`);
+        showStatus(`🔄 Смена типа анализа на: ${getAnalysisTypeName(currentAnalysisType)}`, 'info');
+
+        updateSymbolOptions();
+        updateInterfaceForAnalysisType();
+
+        // ПЕРЕЗАГРУЖАЕМ ВСЕ ГРАФИКИ ПРИ СМЕНЕ ТИПА АНАЛИЗА
+        forceRefreshAll();
+    }
+
+    // Обновление интерфейса в зависимости от типа анализа
+    function updateInterfaceForAnalysisType() {
+        const spotAnalysisDashboard = document.getElementById('spotAnalysisDashboard');
+        const futuresAnalysisDashboard = document.getElementById('futuresAnalysisDashboard');
+        const analysisModeText = document.getElementById('analysisModeText');
+        const intrinsicChartTitle = document.getElementById('intrinsicChartTitle');
+
+        analysisModeText.textContent = `Режим: ${getAnalysisTypeName(currentAnalysisType)}`;
+
+        if (currentAnalysisType === 'spot') {
+            spotAnalysisDashboard.style.display = 'flex';
+            futuresAnalysisDashboard.style.display = 'none';
+            intrinsicChartTitle.textContent = '📊 Историческое собственное движение ETH Spot относительно BTC Spot';
+        } else {
+            spotAnalysisDashboard.style.display = 'none';
+            futuresAnalysisDashboard.style.display = 'flex';
+            intrinsicChartTitle.textContent = '📈 Историческое собственное движение ETH Futures относительно BTC Futures';
+        }
+    }
+
+    // Смена периода анализа
+    function changeTrainingPeriod() {
+        const days = document.getElementById('trainingDaysSelect').value;
+        debugLog(`Changing training period to: ${days} days`);
+        showStatus(`🔄 Смена периода анализа на ${days} дней...`, 'info');
+        forceRefreshAll();
+    }
+
+    // Принудительное обновление всех данных
+    async function forceRefreshAll() {
+        debugLog('Force refreshing all data...');
+        showStatus('Принудительное обновление всех данных...', 'warning');
+        await loadChartData(false);
+        await updatePrices();
+        await loadIntrinsicChart();
+        showStatus('Все данные обновлены!', 'success');
+    }
+
+    // Загрузка данных графика
+    async function loadChartData(showNotification = true) {
+        try {
+            if (showNotification) {
+                showStatus('Загрузка графика...', 'info');
+            }
+
+            const symbol = document.getElementById('symbolSelect').value;
+            const timeframe = document.getElementById('timeframeSelect').value;
+            const limit = document.getElementById('candleLimit').value;
+            const dataType = getDataTypeForSymbol();
+
+            const response = await axios.get('/screener/api/chart-data/', {
+                params: {
+                    symbol: symbol,
+                    timeframe: timeframe,
+                    limit: limit,
+                    data_type: dataType,
+                    futures_type: currentFuturesType
+                },
+                timeout: 10000
+            });
+
+            if (response.data.success) {
+                currentChartData = response.data.data;
+                renderChart(currentChartData);
+
+                if (showNotification) {
+                    showStatus(`График загружен: ${currentChartData.symbol} ${currentChartData.timeframe}`, 'success');
+                }
+            } else {
+                showStatus('Ошибка загрузки графика: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            showStatus('Ошибка загрузки: ' + error.message, 'error');
+        }
+    }
+
+    // Отрисовка графика цен
+    function renderChart(chartData) {
+        try {
+            const candles = chartData.candles;
+
+            if (!candles || candles.length === 0) {
+                document.getElementById('priceChart').innerHTML = '<div class="loading">Нет данных для отображения</div>';
+                return;
+            }
+
+            const dates = candles.map(c => new Date(c.time * 1000));
+            const opens = candles.map(c => c.open);
+            const highs = candles.map(c => c.high);
+            const lows = candles.map(c => c.low);
+            const closes = candles.map(c => c.close);
+
+            const trace = {
+                type: 'candlestick',
+                x: dates,
+                open: opens,
+                high: highs,
+                low: lows,
+                close: closes,
+                name: chartData.symbol,
+                increasing: {line: {color: '#00C853'}, fillcolor: '#00C853'},
+                decreasing: {line: {color: '#FF5252'}, fillcolor: '#FF5252'}
+            };
+
+            const dataType = getDataTypeForSymbol();
+            const dataTypeName = dataType === 'spot' ? 'Spot' : `Futures (${getFuturesTypeName(currentFuturesType)})`;
+
+            const layout = {
+                title: {
+                    text: `${chartData.symbol} - ${chartData.timeframe} (${dataTypeName})`,
+                    font: {color: 'white', size: 16}
+                },
+                xaxis: {
+                    title: {text: 'Время', font: {color: 'white'}},
+                    type: 'date',
+                    rangeslider: {visible: false},
+                    gridcolor: '#444',
+                    color: 'white'
+                },
+                yaxis: {
+                    title: {text: 'Цена (USDT)', font: {color: 'white'}},
+                    gridcolor: '#444',
+                    color: 'white'
+                },
+                plot_bgcolor: '#1a1a2e',
+                paper_bgcolor: '#1a1a2e',
+                font: {color: 'white'},
+                height: 500,
+                margin: {t: 50, r: 50, b: 50, l: 70},
+                showlegend: false
+            };
+
+            Plotly.react('priceChart', [trace], layout, {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+            });
+
+        } catch (error) {
+            document.getElementById('priceChart').innerHTML = '<div class="loading">Ошибка отрисовки: ' + error.message + '</div>';
+        }
+    }
+
+    // Обновление информации
+    function updateAnalysisInfo(analysisInfo) {
+        const infoElement = document.getElementById('data-info');
+        if (!infoElement || !analysisInfo) return;
+
+        const dataType = getDataTypeForSymbol();
+        const dataTypeName = dataType === 'spot' ? 'Spot' : `Futures ${getFuturesTypeName(currentFuturesType)}`;
+
+        infoElement.innerHTML = `
+            <div><strong>Символ:</strong> <span id="current-symbol">${document.getElementById('symbolSelect').value}</span></div>
+            <div><strong>Таймфрейм:</strong> <span id="current-timeframe">${document.getElementById('timeframeSelect').value}</span></div>
+            <div><strong>Тип данных:</strong> <span id="current-data-type">${dataTypeName}</span></div>
+            <div><strong>Период анализа:</strong> <span id="current-training-days">${analysisInfo.training_days} дней</span></div>
+            <div><strong>Тип анализа:</strong> <span id="current-analysis-type">${getAnalysisTypeName(currentAnalysisType)}</span></div>
+            <div><strong>Тип контракта:</strong> <span id="current-futures-type">${getFuturesTypeName(currentFuturesType)}</span></div>
+            <div><strong>Обновлено:</strong> <span id="last-update-time">${new Date().toLocaleTimeString()}</span></div>
+        `;
+    }
+
+    // Обновление цен и анализа
+    async function updatePrices() {
+        try {
+            if (window.isLoadingIntrinsicChart) {
+                debugLog('Skipping price update - intrinsic chart loading');
+                return;
+            }
+
+            const trainingDays = document.getElementById('trainingDaysSelect').value;
+
+            const response = await axios.get('/screener/api/data/', {
+                params: {
+                    training_days: trainingDays,
+                    analysis_type: currentAnalysisType,
+                    futures_type: currentFuturesType
+                },
+                timeout: 8000
+            });
+
+            if (response.data.success) {
+                const data = response.data.data;
+                updatePriceCards(data.prices);
+                updateAnalysis(data);
+                updateAnalysisInfo(data.analysis_info);
+
+                // ПРОВЕРКА АЛЕРТОВ ПРИ ОБНОВЛЕНИИ ЦЕН
+                await checkAlerts(data.prices);
+
+                const now = new Date();
+                const ethPrice = data.prices.eth_spot ? `$${data.prices.eth_spot.toFixed(2)}` : 'N/A';
+                const btcPrice = data.prices.btc_spot ? `$${data.prices.btc_spot.toFixed(2)}` : 'N/A';
+
+                const statusElement = document.getElementById('status');
+                statusElement.textContent = `[${now.toLocaleTimeString()}] Цены: ETH=${ethPrice} | BTC=${btcPrice} | Тип: ${getAnalysisTypeName(currentAnalysisType)}`;
+
+            } else {
+                debugLog('Prices update failed:', response.data.error);
+                showStatus('Ошибка обновления цен: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            if (error.code === 'ECONNABORTED') {
+                debugLog('Price update timeout - retrying later');
+            } else {
+                debugLog('Prices update error:', error.message);
+                showStatus(`Ошибка: ${error.message}`, 'error');
+            }
+        }
+    }
+
+    // Обновление карточек с ценами
+    function updatePriceCards(prices) {
+        // ETH Spot
+        if (prices.eth_spot !== undefined && prices.eth_spot !== null) {
+            const ethElement = document.getElementById('eth-spot-price');
+            const oldPrice = lastPrices.eth_spot;
+            const newPrice = prices.eth_spot;
+
+            if (ethElement) {
+                ethElement.textContent = `$${newPrice.toFixed(2)}`;
+
+                if (oldPrice && oldPrice !== newPrice) {
+                    const change = ((newPrice - oldPrice) / oldPrice * 100).toFixed(3);
+                    const changeElement = document.getElementById('eth-spot-change');
+                    if (changeElement) {
+                        changeElement.textContent = `${change >= 0 ? '+' : ''}${change}%`;
+                        changeElement.className = `change ${change >= 0 ? 'up' : 'down'}`;
+                    }
+                }
+            }
+        }
+
+        // BTC Spot
+        if (prices.btc_spot !== undefined && prices.btc_spot !== null) {
+            const btcElement = document.getElementById('btc-spot-price');
+            const oldPrice = lastPrices.btc_spot;
+            const newPrice = prices.btc_spot;
+
+            if (btcElement) {
+                btcElement.textContent = `$${newPrice.toFixed(2)}`;
+
+                if (oldPrice && oldPrice !== newPrice) {
+                    const change = ((newPrice - oldPrice) / oldPrice * 100).toFixed(3);
+                    const changeElement = document.getElementById('btc-spot-change');
+                    if (changeElement) {
+                        changeElement.textContent = `${change >= 0 ? '+' : ''}${change}%`;
+                        changeElement.className = `change ${change >= 0 ? 'up' : 'down'}`;
+                    }
+                }
+            }
+        }
+
+        // ETH Futures
+        if (prices.eth_futures !== undefined && prices.eth_futures !== null) {
+            const futuresElement = document.getElementById('eth-futures-price');
+            if (futuresElement) {
+                futuresElement.textContent = `$${prices.eth_futures.toFixed(2)}`;
+            }
+
+            if (prices.eth_spot) {
+                const basis = ((prices.eth_futures - prices.eth_spot) / prices.eth_spot * 100).toFixed(3);
+                const basisElement = document.getElementById('eth-basis');
+                if (basisElement) {
+                    basisElement.textContent = `Basis: ${basis}%`;
+                    basisElement.className = `change ${basis >= 0 ? 'up' : 'down'}`;
+                }
+            }
+        }
+
+        // BTC Futures
+        if (prices.btc_futures !== undefined && prices.btc_futures !== null) {
+            const futuresElement = document.getElementById('btc-futures-price');
+            if (futuresElement) {
+                futuresElement.textContent = `$${prices.btc_futures.toFixed(2)}`;
+            }
+
+            if (prices.btc_spot) {
+                const basis = ((prices.btc_futures - prices.btc_spot) / prices.btc_spot * 100).toFixed(3);
+                const basisElement = document.getElementById('btc-basis');
+                if (basisElement) {
+                    basisElement.textContent = `Basis: ${basis}%`;
+                    basisElement.className = `change ${basis >= 0 ? 'up' : 'down'}`;
+                }
+            }
+        }
+
+        lastPrices = {...prices};
+    }
+
+    // Обновление анализа
+    function updateAnalysis(data) {
+        const technical = data.technical_analysis || data.analysis || {};
+        const scenario = data.market_scenario || {};
+
+        updateAnalysisCards(technical, scenario);
+        updateSummary(technical, scenario);
+    }
+
+    // Обновление карточек анализа
+    function updateAnalysisCards(technical, scenario) {
+        const analysisType = currentAnalysisType;
+
+        // Спот анализ
+        if (analysisType === 'spot') {
+            // Собственное движение
+            const intrinsicElement = document.getElementById('eth-intrinsic-move');
+            if (intrinsicElement && technical.spot_intrinsic !== undefined) {
+                intrinsicElement.textContent = `${technical.spot_intrinsic >= 0 ? '+' : ''}${technical.spot_intrinsic.toFixed(3)}%`;
+                intrinsicElement.className = `analysis-value ${technical.spot_intrinsic >= 0 ? 'up' : 'down'}`;
+            }
+
+            // Влияние BTC
+            const influenceElement = document.getElementById('btc-influence');
+            if (influenceElement && technical.spot_btc_influence !== undefined) {
+                influenceElement.textContent = `${Math.abs(technical.spot_btc_influence).toFixed(1)}%`;
+                influenceElement.className = 'analysis-value';
+            }
+
+            // Базис ETH
+            const basisElement = document.getElementById('eth-basis-value');
+            if (basisElement && technical.basis_eth !== undefined) {
+                basisElement.textContent = `${technical.basis_eth >= 0 ? '+' : ''}${technical.basis_eth.toFixed(3)}%`;
+                basisElement.className = `analysis-value ${technical.basis_eth >= 0 ? 'up' : 'down'}`;
+            }
+
+            // Собственная сила ETH
+            const powerElement = document.getElementById('eth-own-power');
+            if (powerElement && technical.spot_eth_own !== undefined) {
+                powerElement.textContent = `${Math.abs(technical.spot_eth_own).toFixed(1)}%`;
+                powerElement.className = 'analysis-value';
+            }
+        }
+
+        // Фьючерс анализ
+        if (analysisType === 'futures') {
+            // Собственное движение фьючерсов
+            const futuresIntrinsicElement = document.getElementById('eth-futures-intrinsic-move');
+            if (futuresIntrinsicElement && technical.futures_intrinsic !== undefined) {
+                futuresIntrinsicElement.textContent = `${technical.futures_intrinsic >= 0 ? '+' : ''}${technical.futures_intrinsic.toFixed(3)}%`;
+                futuresIntrinsicElement.className = `analysis-value ${technical.futures_intrinsic >= 0 ? 'up' : 'down'}`;
+            }
+
+            // Влияние BTC на фьючерсы
+            const futuresInfluenceElement = document.getElementById('btc-futures-influence');
+            if (futuresInfluenceElement && technical.futures_btc_influence !== undefined) {
+                futuresInfluenceElement.textContent = `${Math.abs(technical.futures_btc_influence).toFixed(1)}%`;
+                futuresInfluenceElement.className = 'analysis-value';
+            }
+
+            // Базис ETH Futures
+            const futuresBasisElement = document.getElementById('eth-futures-basis-value');
+            if (futuresBasisElement && technical.basis_eth !== undefined) {
+                futuresBasisElement.textContent = `${technical.basis_eth >= 0 ? '+' : ''}${technical.basis_eth.toFixed(3)}%`;
+                futuresBasisElement.className = `analysis-value ${technical.basis_eth >= 0 ? 'up' : 'down'}`;
+            }
+
+            // Собственная сила фьючерсов
+            const futuresPowerElement = document.getElementById('eth-futures-own-power');
+            if (futuresPowerElement && technical.futures_eth_own !== undefined) {
+                futuresPowerElement.textContent = `${Math.abs(technical.futures_eth_own).toFixed(1)}%`;
+                futuresPowerElement.className = 'analysis-value';
+            }
+        }
+    }
+
+    // Обновление общего вывода
+    function updateSummary(technical, scenario) {
+        const summaryElement = document.getElementById('summaryText');
+        if (!summaryElement) return;
+
+        if (!technical.models_ready) {
+            summaryElement.textContent = '📊 Модели в процессе обучения...';
+            return;
+        }
+
+        let summary = '';
+        const analysisType = currentAnalysisType;
+
+        if (analysisType === 'spot') {
+            const intrinsic = technical.spot_intrinsic || 0;
+            const btcInfluence = technical.spot_btc_influence || 0;
+            const ethPower = technical.spot_eth_own || 0;
+
+            if (intrinsic > 2.0) {
+                summary = `🚀 ETH показывает СИЛЬНУЮ САМОСТОЯТЕЛЬНОСТЬ! Растет на ${intrinsic.toFixed(1)}% лучше чем обычно следует за BTC`;
+            } else if (intrinsic > 0.5) {
+                summary = `📈 ETH немного ОПЕРЕЖАЕТ BTC (+${intrinsic.toFixed(1)}%). За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%, собственная сила: ${Math.abs(ethPower).toFixed(0)}%`;
+            } else if (intrinsic > -0.5) {
+                summary = `⚖️ ETH движется В СООТВЕТСТВИИ С BTC (${intrinsic.toFixed(1)}%). За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%`;
+            } else if (intrinsic > -2.0) {
+                summary = `📉 ETH немного ОТСТАЕТ ОТ BTC (${intrinsic.toFixed(1)}%). За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%`;
+            } else {
+                summary = `🔻 ETH показывает СЛАБОСТЬ! Отстает на ${Math.abs(intrinsic).toFixed(1)}% от BTC. За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%`;
+            }
+        }
+
+        if (analysisType === 'futures' && technical.futures_intrinsic !== undefined) {
+            const intrinsic = technical.futures_intrinsic || 0;
+            const btcInfluence = technical.futures_btc_influence || 0;
+            const ethPower = technical.futures_eth_own || 0;
+
+            if (intrinsic > 2.0) {
+                summary = `🚀 ETH Futures показывает СИЛЬНУЮ САМОСТОЯТЕЛЬНОСТЬ! Растет на ${intrinsic.toFixed(1)}% лучше чем обычно следует за BTC Futures`;
+            } else if (intrinsic > 0.5) {
+                summary = `📈 ETH Futures немного ОПЕРЕЖАЕТ BTC Futures (+${intrinsic.toFixed(1)}%). За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%, собственная сила: ${Math.abs(ethPower).toFixed(0)}%`;
+            } else if (intrinsic > -0.5) {
+                summary = `⚖️ ETH Futures движется В СООТВЕТСТВИИ С BTC Futures (${intrinsic.toFixed(1)}%). За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%`;
+            } else if (intrinsic > -2.0) {
+                summary = `📉 ETH Futures немного ОТСТАЕТ ОТ BTC Futures (${intrinsic.toFixed(1)}%). За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%`;
+            } else {
+                summary = `🔻 ETH Futures показывает СЛАБОСТЬ! Отстает на ${Math.abs(intrinsic).toFixed(1)}% от BTC Futures. За счет BTC: ${Math.abs(btcInfluence).toFixed(0)}%`;
+            }
+        }
+
+        summaryElement.textContent = summary;
+    }
+
+    // Загрузка данных графика собственного движения
+    async function loadIntrinsicChart() {
+        try {
+            window.isLoadingIntrinsicChart = true;
+
+            const days = document.getElementById('intrinsicPeriodSelect').value;
+
+            const dataType = getDataTypeForSymbol();
+
+            debugLog(`📈 Loading intrinsic movement chart for ${days} days, data type: ${dataType}`);
+
+            const intrinsicChartElement = document.getElementById('intrinsicChart');
+            if (!intrinsicChartElement) {
+                console.error('❌ intrinsicChart element not found!');
+                return;
+            }
+
+            intrinsicChartElement.innerHTML = '<div class="loading">Загрузка графика собственного движения...</div>';
+            showStatus(`Загрузка исторического графика (${dataType === 'spot' ? 'Spot' : 'Futures'})...`, 'info');
+
+            const response = await axios.get('/screener/api/intrinsic-movement/', {
+                params: {
+                    days: parseInt(days),
+                    timeframe: '1h',
+                    data_type: dataType,
+                    futures_type: currentFuturesType
+                },
+                timeout: 30000
+            });
+
+            if (response.data.success) {
+                const chartData = response.data.data;
+                document.getElementById('intrinsicChart').innerHTML = '';
+                renderIntrinsicChart(chartData, dataType);
+                debugLog('✅ Intrinsic chart loaded successfully');
+                showStatus(`Исторический график загружен (${dataType === 'spot' ? 'Spot' : 'Futures'})!`, 'success');
+            } else {
+                intrinsicChartElement.innerHTML = '<div class="loading">Ошибка загрузки: ' + response.data.error + '</div>';
+                showStatus('Ошибка загрузки графика: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            document.getElementById('intrinsicChart').innerHTML =
+                '<div class="loading">Ошибка загрузки графика: ' + error.message + '</div>';
+            showStatus('Ошибка загрузки графика: ' + error.message, 'error');
+        } finally {
+            window.isLoadingIntrinsicChart = false;
+        }
+    }
+
+    // Отрисовка графика собственного движения
+    function renderIntrinsicChart(chartData, dataType) {
+        try {
+            const intrinsicData = chartData.intrinsic_data;
+            const summary = chartData.summary;
+
+            if (!intrinsicData || intrinsicData.length === 0) {
+                document.getElementById('intrinsicChart').innerHTML =
+                    '<div class="loading">Недостаточно данных для построения графика</div>';
+                return;
+            }
+
+            const times = intrinsicData.map(d => new Date(d.time * 1000));
+            const movements = intrinsicData.map(d => d.intrinsic_movement);
+
+            const colors = movements.map(value =>
+                value >= 0 ? '#00C853' : '#FF5252'
+            );
+
+            const trace = {
+                type: 'scatter',
+                mode: 'lines+markers',
+                x: times,
+                y: movements,
+                line: {
+                    color: '#2196F3',
+                    width: 2
+                },
+                marker: {
+                    size: 4,
+                    color: colors,
+                    line: {width: 0}
+                },
+                name: dataType === 'spot' ? 'Собственное движение ETH Spot' : 'Собственное движение ETH Futures',
+                hovertemplate:
+                    '<b>%{x}</b><br>' +
+                    'Собственное движение: <b>%{y:.3f}%</b><br>' +
+                    '<extra></extra>'
+            };
+
+            const zeroLine = {
+                type: 'scatter',
+                mode: 'lines',
+                x: [times[0], times[times.length - 1]],
+                y: [0, 0],
+                line: {
+                    color: '#666',
+                    width: 1,
+                    dash: 'dash'
+                },
+                name: 'Нулевая линия',
+                showlegend: false,
+                hoverinfo: 'skip'
+            };
+
+            const layout = {
+                title: {
+                    text: dataType === 'spot'
+                        ? `Собственное движение ETH Spot относительно BTC Spot (${chartData.metadata.period_days} дней)`
+                        : `Собственное движение ETH Futures относительно BTC Futures (${chartData.metadata.period_days} дней)`,
+                    font: {color: 'white', size: 16}
+                },
+                xaxis: {
+                    title: {text: 'Время', font: {color: 'white'}},
+                    type: 'date',
+                    gridcolor: '#444',
+                    color: 'white'
+                },
+                yaxis: {
+                    title: {
+                        text: 'Собственное движение (%)',
+                        font: {color: 'white'}
+                    },
+                    gridcolor: '#444',
+                    color: 'white',
+                    tickformat: '.2f'
+                },
+                plot_bgcolor: '#1a1a2e',
+                paper_bgcolor: '#1a1a2e',
+                font: {color: 'white'},
+                height: 400,
+                margin: {t: 50, r: 50, b: 50, l: 70},
+                showlegend: true,
+                legend: {
+                    x: 0,
+                    y: 1.1,
+                    bgcolor: 'rgba(0,0,0,0)',
+                    font: {color: 'white'}
+                }
+            };
+
+            Plotly.newPlot('intrinsicChart', [trace, zeroLine], layout, {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+            });
+
+            updateIntrinsicSummary(summary, chartData.metadata.period_days, dataType);
+
+        } catch (error) {
+            document.getElementById('intrinsicChart').innerHTML =
+                '<div class="loading">Ошибка отрисовки графика: ' + error.message + '</div>';
+        }
+    }
+
+    // Обновление статистики графика
+    function updateIntrinsicSummary(summary, days, dataType) {
+        const summaryElement = document.getElementById('intrinsicSummary');
+        if (!summaryElement || !summary) return;
+
+        const positivePct = summary.total_points > 0 ?
+            ((summary.positive_points / summary.total_points) * 100).toFixed(1) : 0;
+
+        const negativePct = summary.total_points > 0 ?
+            ((summary.negative_points / summary.total_points) * 100).toFixed(1) : 0;
+
+        summaryElement.innerHTML = `
+            <strong>📈 Статистика за ${days} дней (${dataType === 'spot' ? 'Spot' : 'Futures'}):</strong><br>
+            Точек данных: ${summary.total_points} |
+            Среднее движение: <span class="${summary.avg_movement >= 0 ? 'up' : 'down'}">${summary.avg_movement.toFixed(3)}%</span> |
+            Макс: <span class="up">+${summary.max_movement.toFixed(2)}%</span> |
+            Мин: <span class="down">${summary.min_movement.toFixed(2)}%</span><br>
+            Положительных: <span class="up">${summary.positive_points} (${positivePct}%)</span> |
+            Отрицательных: <span class="down">${summary.negative_points} (${negativePct}%)</span> |
+            Сильных движений: <span class="up">${summary.strong_positive}</span>↑ / <span class="down">${summary.strong_negative}</span>↓
+        `;
+    }
+
+    // Управление автообновлением
+    function startAutoUpdate() {
+        if (isAutoUpdateActive) return;
+
+        isAutoUpdateActive = true;
+        autoUpdateInterval = setInterval(updatePrices, UPDATE_CONFIG.PRICES);
+        chartUpdateInterval = setInterval(() => loadChartData(false), UPDATE_CONFIG.CHART);
+
+        const autoUpdateBtn = document.getElementById('autoUpdateBtn');
+        autoUpdateBtn.textContent = '⏹️ Остановить автообновление';
+        autoUpdateBtn.className = 'btn-danger';
+        showStatus('🚀 АВТООБНОВЛЕНИЕ ВКЛЮЧЕНО!', 'success');
+        updatePrices();
+    }
+
+    function stopAutoUpdate() {
+        isAutoUpdateActive = false;
+        if (autoUpdateInterval) clearInterval(autoUpdateInterval);
+        if (chartUpdateInterval) clearInterval(chartUpdateInterval);
+
+        const autoUpdateBtn = document.getElementById('autoUpdateBtn');
+        if (autoUpdateBtn) {
+            autoUpdateBtn.textContent = '▶️ Включить автообновление';
+            autoUpdateBtn.className = 'btn-success';
+        }
+        showStatus('⏹️ Автообновление ВЫКЛЮЧЕНО', 'info');
+    }
+
+    function toggleAutoUpdate() {
+        if (isAutoUpdateActive) {
+            stopAutoUpdate();
+        } else {
+            startAutoUpdate();
+        }
+    }
+
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', async function () {
+        showStatus('Инициализация приложения...', 'info');
+
+        // Инициализируем интерфейс
+        updateSymbolOptions();
+        updateInterfaceForAnalysisType();
+
+        // Проверяем статус аутентификации и загружаем алерты
+        await checkAuthStatus();
+
+        // Загружаем все данные
+        await loadChartData();
+        await updatePrices();
+        await loadIntrinsicChart();
+
+        // Запускаем автообновление
+        startAutoUpdate();
+        showStatus('✅ Приложение готово!', 'success');
+    });
+
+    // Обработчики событий
+    document.getElementById('symbolSelect').addEventListener('change', loadChartData);
+    document.getElementById('timeframeSelect').addEventListener('change', loadChartData);
+    document.getElementById('candleLimit').addEventListener('change', loadChartData);
+    document.getElementById('trainingDaysSelect').addEventListener('change', changeTrainingPeriod);
+    document.getElementById('analysisTypeSelect').addEventListener('change', changeAnalysisType);
+    document.getElementById('futuresTypeSelect').addEventListener('change', changeAnalysisType);
+    document.getElementById('intrinsicPeriodSelect').addEventListener('change', loadIntrinsicChart);
+
+    // Обработчики для кнопок
+    document.getElementById('refreshChartBtn').addEventListener('click', () => loadChartData(true));
+    document.getElementById('autoUpdateBtn').addEventListener('click', toggleAutoUpdate);
+    document.getElementById('forceRefreshBtn').addEventListener('click', forceRefreshAll);
+
+    // Обработчики для алертов
+    document.getElementById('createAlertBtn').addEventListener('click', createAlert);
+    document.getElementById('toggleAlertFormBtn').addEventListener('click', toggleAlertForm);
+
+    window.addEventListener('beforeunload', stopAutoUpdate);
+</script>
+</body>
+</html>
